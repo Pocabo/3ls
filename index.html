@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>3Ls — Language Learning Library</title>
+<meta name="description" content="3Ls (Language Learning Library) — CEFR 기반 다국어 학습 PWA. 오프라인 지원.">
+<!-- PWA -->
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#3b5bdb">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="3Ls">
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --ink:#1c2233; --sub:#5b6478; --line:#e3e7f0;
+  --accent:#3b5bdb; --accent-soft:#e7ecfd; --good:#2f9e44; --good-soft:#e6f7ea;
+  --bad:#e03131; --bad-soft:#fdecec; --warn:#e8890c; --warn-soft:#fdf3e3;
+  --lock:#aab1c2; --radius:14px; --shadow:0 1px 3px rgba(20,30,60,.08),0 8px 24px rgba(20,30,60,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#12141c; --card:#1c2030; --ink:#e8ebf5; --sub:#9aa3b8; --line:#2b3147;
+    --accent:#748ffc; --accent-soft:#26304f; --good:#51cf66; --good-soft:#1e3527;
+    --bad:#ff6b6b; --bad-soft:#3d2426; --warn:#ffa94d; --warn-soft:#3a2f1d; --lock:#555d73;
+    --shadow:0 1px 3px rgba(0,0,0,.4); }
+}
+*{box-sizing:border-box; margin:0; padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6}
+button{font:inherit; cursor:pointer; border:none; background:none; color:inherit}
+input,textarea,select{font:inherit; color:inherit}
+header{position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:10px; padding:10px 18px; box-shadow:var(--shadow)}
+header .logo{font-weight:800; font-size:1.05rem; display:flex; align-items:center; gap:8px; cursor:pointer; white-space:nowrap}
+header .logo .dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--accent)}
+header .spacer{flex:1}
+#langSelect{padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:var(--card); max-width:170px}
+.hbtn{padding:7px 13px; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-weight:600; white-space:nowrap}
+.hbtn:hover{filter:brightness(.96)}
+.hbtn .badge{background:var(--bad); color:#fff; border-radius:99px; font-size:.72rem; padding:1px 7px; margin-left:4px}
+main{max-width:900px; margin:0 auto; padding:22px 16px 80px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:16px}
+h1{font-size:1.5rem; margin-bottom:4px}
+h2{font-size:1.15rem; margin-bottom:10px}
+.sub{color:var(--sub); font-size:.92rem}
+.pill{display:inline-block; font-size:.75rem; font-weight:700; padding:2px 10px; border-radius:99px; background:var(--accent-soft); color:var(--accent); vertical-align:middle}
+.pill.green{background:var(--good-soft); color:var(--good)}
+.pill.gray{background:var(--line); color:var(--sub)}
+/* ── 홈: 레벨 지도 ── */
+.levelgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px}
+.levelcard{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; cursor:pointer;
+  box-shadow:var(--shadow); transition:transform .12s, border-color .12s; position:relative}
+.levelcard:hover{transform:translateY(-2px); border-color:var(--accent)}
+.levelcard.locked{opacity:.55; cursor:not-allowed}
+.levelcard.locked:hover{transform:none; border-color:var(--line)}
+.levelcard .lv{font-size:.78rem; font-weight:800; color:var(--accent); letter-spacing:.5px}
+.levelcard h3{font-size:1.02rem; margin:2px 0 6px}
+.levelcard .meta{font-size:.8rem; color:var(--sub)}
+.levelcard .lockicon{position:absolute; top:14px; right:14px; color:var(--lock)}
+.progressbar{height:6px; background:var(--line); border-radius:99px; margin-top:10px; overflow:hidden}
+.progressbar>div{height:100%; background:var(--good); border-radius:99px; transition:width .3s}
+.phase-tag{position:absolute; top:14px; right:14px; font-size:.7rem; font-weight:700; color:var(--sub)}
+/* ── 레벨 화면 ── */
+.tabs{display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap}
+.tabs button{padding:8px 16px; border-radius:10px; font-weight:600; color:var(--sub); background:var(--card); border:1px solid var(--line)}
+.tabs button.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+.backlink{display:inline-block; margin-bottom:12px; color:var(--sub); font-size:.9rem; cursor:pointer}
+.backlink:hover{color:var(--accent)}
+/* ── 단어 학습 ── */
+.wordtable{width:100%; border-collapse:collapse; font-size:.93rem}
+.wordtable th{text-align:left; color:var(--sub); font-size:.78rem; font-weight:600; padding:6px 8px; border-bottom:1px solid var(--line)}
+.wordtable td{padding:8px; border-bottom:1px solid var(--line); vertical-align:top}
+.wordtable tr:last-child td{border-bottom:none}
+.w-word{font-weight:700; white-space:nowrap}
+.w-ipa{color:var(--sub); font-size:.85rem}
+.gender{font-size:.7rem; font-weight:800; border-radius:6px; padding:1px 6px; margin-left:6px; vertical-align:middle}
+.gender.m{background:#dbe4ff; color:#3b5bdb} .gender.f{background:#ffdeeb; color:#d6336c} .gender.mf{background:#e5dbff; color:#7048e8}
+@media (prefers-color-scheme: dark){
+  .gender.m{background:#2a3457; color:#91a7ff} .gender.f{background:#4a2436; color:#faa2c1} .gender.mf{background:#382a57; color:#b197fc}
+}
+.speak{color:var(--accent); font-size:1rem; padding:2px 6px; border-radius:8px}
+.speak:hover{background:var(--accent-soft)}
+/* ── 플래시카드 ── */
+.flashwrap{text-align:center}
+.flashcard{max-width:440px; margin:14px auto; min-height:230px; background:var(--card); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); display:flex; flex-direction:column; justify-content:center;
+  align-items:center; padding:26px; cursor:pointer; user-select:none}
+.flashcard .big{font-size:1.9rem; font-weight:800}
+.flashcard .ipa{color:var(--sub); margin-top:4px}
+.flashcard .meaning{font-size:1.25rem; font-weight:700; margin-top:6px}
+.flashcard .ex{margin-top:12px; font-size:.92rem; color:var(--sub)}
+.flashbtns{display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:wrap}
+.btn{padding:10px 20px; border-radius:12px; font-weight:700; border:1px solid var(--line); background:var(--card)}
+.btn:hover{filter:brightness(.97)}
+.btn.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+.btn.good{background:var(--good-soft); color:var(--good); border-color:transparent}
+.btn.bad{background:var(--bad-soft); color:var(--bad); border-color:transparent}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+/* ── 연습 문제 ── */
+.exercise{margin-bottom:18px}
+.ex-num{font-size:.78rem; font-weight:800; color:var(--accent)}
+.ex-prompt{font-weight:600; margin:4px 0 10px}
+.blockpool,.blockanswer{display:flex; flex-wrap:wrap; gap:8px; min-height:46px; padding:9px; border-radius:12px}
+.blockanswer{border:2px dashed var(--line); background:var(--bg); margin-bottom:8px}
+.blockpool{border:1px solid transparent}
+.block{padding:7px 14px; background:var(--card); border:1px solid var(--line); border-radius:10px; font-weight:600;
+  cursor:pointer; box-shadow:var(--shadow); transition:transform .1s}
+.block:hover{transform:translateY(-1px); border-color:var(--accent)}
+.blockanswer .block{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+.blankline{display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:1.05rem}
+.blankinput{border:none; border-bottom:2px solid var(--accent); background:transparent; padding:2px 8px; min-width:110px;
+  font-size:1.05rem; font-weight:700; text-align:center; outline:none; color:var(--ink)}
+.charbar{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px}
+.charbar button{padding:3px 9px; border:1px solid var(--line); border-radius:8px; background:var(--card); font-size:.95rem}
+.charbar button:hover{background:var(--accent-soft)}
+.choiceopt{display:block; width:100%; text-align:left; padding:10px 14px; margin-bottom:8px; border:1px solid var(--line);
+  border-radius:12px; background:var(--card); font-weight:600}
+.choiceopt:hover{border-color:var(--accent)}
+.choiceopt.sel{border-color:var(--accent); background:var(--accent-soft)}
+.choiceopt.correct{border-color:var(--good); background:var(--good-soft)}
+.choiceopt.wrong{border-color:var(--bad); background:var(--bad-soft)}
+textarea.compose{width:100%; min-height:100px; padding:12px; border:1px solid var(--line); border-radius:12px;
+  background:var(--card); resize:vertical; outline:none}
+textarea.compose:focus{border-color:var(--accent)}
+.feedback{margin-top:10px; padding:11px 14px; border-radius:12px; font-size:.93rem; font-weight:600; display:none}
+.feedback.show{display:block}
+.feedback.ok{background:var(--good-soft); color:var(--good)}
+.feedback.no{background:var(--bad-soft); color:var(--bad)}
+.feedback.info{background:var(--warn-soft); color:var(--warn)}
+.feedback ul{margin:6px 0 0 18px; font-weight:400}
+.hint{font-size:.83rem; color:var(--sub); margin-top:6px}
+.grammarbox{border-left:4px solid var(--accent); padding:12px 16px; background:var(--accent-soft); border-radius:0 12px 12px 0; margin-bottom:14px}
+.grammarbox h3{font-size:1rem; margin-bottom:6px}
+.grammarbox table{border-collapse:collapse; margin:8px 0; font-size:.9rem}
+.grammarbox td,.grammarbox th{border:1px solid var(--line); padding:4px 12px; background:var(--card)}
+/* ── 시험 ── */
+.quizhead{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px}
+.scorebig{font-size:2.6rem; font-weight:800; text-align:center; margin:10px 0}
+.resultmsg{text-align:center; font-weight:700; font-size:1.1rem}
+.dots{display:flex; gap:6px; justify-content:center; margin-top:10px}
+.dots span{width:12px; height:12px; border-radius:50%; background:var(--line)}
+.dots span.ok{background:var(--good)} .dots span.no{background:var(--bad)}
+.empty{text-align:center; color:var(--sub); padding:40px 0}
+footer{max-width:900px; margin:0 auto; padding:0 16px 30px; color:var(--sub); font-size:.8rem; text-align:center}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" onclick="App.go('home')"><span class="dot"></span>3Ls</div>
+  <div class="spacer"></div>
+  <select id="langSelect" onchange="App.switchLang(this.value)" title="학습 언어 선택"></select>
+  <button class="hbtn" onclick="App.go('review')">🔁 복습<span class="badge" id="reviewBadge" style="display:none">0</span></button>
+  <button class="hbtn" onclick="document.getElementById('packFile').click()" title="JSON 언어팩 가져오기">＋ 언어팩</button>
+  <input type="file" id="packFile" accept=".json" style="display:none" onchange="App.importPack(this)">
+</header>
+<main id="app"></main>
+<footer>3Ls · Language Learning Library — 데이터 주도형 다국어 학습 엔진 · 진행 상황은 이 브라우저(localStorage)에 저장됩니다</footer>
+
+<script>
+/* =====================================================================
+   3Ls (Language Learning Library) — 언어 비종속(language-agnostic) 학습 엔진
+   -------------------------------------------------------------
+   ◆ 설계 원칙: 엔진은 어떤 언어도 모른다. 모든 언어 지식(단어·문법·
+     연습문제·TTS 로케일·특수문자)은 languages/*.js 언어팩이 공급한다.
+   ◆ 새 언어 추가 = languages/xx.js 작성 + <script src> 한 줄 추가,
+     또는 상단 "＋ 언어팩" 버튼으로 JSON 파일 가져오기.
+   ◆ 언어팩 스키마는 languages/_template.js 참고.
+   ===================================================================== */
+window.LANGUAGE_PACKS = {};
+window.registerLanguagePack = function(pack){
+  const need = ['id','name','tts','levels'];
+  for(const k of need){ if(!(k in pack)) { console.error('언어팩에 "'+k+'" 필드가 없습니다', pack); return; } }
+  window.LANGUAGE_PACKS[pack.id] = pack;
+};
+
+const App = (() => {
+  const STORE_KEY = 'polyglotBuilder.v1';
+  const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
+  const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
+  const PASS_SCORE = 80;                        // 레벨 해제 커트라인(%)
+  const DAY = 86400000;
+
+  let S = load();          // 전체 상태
+  let view = {name:'home'};// 현재 화면
+  let quiz = null;         // 진행 중 시험 상태
+  let flash = null;        // 진행 중 플래시카드 상태
+
+  /* ── 상태 저장/불러오기 ─────────────────────────── */
+  function load(){
+    try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(S)); }
+  function langState(){
+    S.langs = S.langs || {};
+    const id = S.activeLang;
+    S.langs[id] = S.langs[id] || { unlocked:1, quizBest:{}, srs:{}, doneEx:{} };
+    return S.langs[id];
+  }
+  function pack(){ return LANGUAGE_PACKS[S.activeLang]; }
+
+  /* ── 유틸 ───────────────────────────────────────── */
+  const $ = sel => document.querySelector(sel);
+  const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const jattr = s => esc(String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")); // onclick 속 JS 문자열 안전 이스케이프
+  function norm(s){ // 답안 비교용 정규화: 소문자, 공백 축약, 끝 문장부호 제거, 유니코드 NFC
+    return String(s??'').normalize('NFC').toLowerCase().replace(/[.!?…]+\s*$/,'').replace(/\s+/g,' ').replace(/[’]/g,"'").trim();
+  }
+  function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+  function speak(text){
+    if(!('speechSynthesis' in window)) return alert('이 브라우저는 음성 합성을 지원하지 않습니다.');
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = pack().tts;
+    const v = speechSynthesis.getVoices().find(v=>v.lang.replace('_','-').startsWith(pack().tts.split('-')[0]));
+    if(v) u.voice = v;
+    u.rate = .92;
+    speechSynthesis.speak(u);
+  }
+  if('speechSynthesis' in window) speechSynthesis.getVoices(); // 보이스 목록 예열
+
+  function allWords(){ return pack().levels.flatMap(L=>L.words.map(w=>({...w, level:L.level}))); }
+  function genderTag(g){
+    if(g==='m') return '<span class="gender m">m</span>';
+    if(g==='f') return '<span class="gender f">f</span>';
+    if(g==='mf') return '<span class="gender mf">m/f</span>';
+    return '';
+  }
+
+  /* ── SRS(누적 복습 루프) ────────────────────────── */
+  function srsMark(word, known){
+    const st = langState();
+    const cur = st.srs[word] || {box:0, due:0};
+    if(known){ cur.box = Math.min(cur.box+1, SRS_DAYS.length-1); }
+    else{ cur.box = 0; }
+    cur.due = Date.now() + SRS_DAYS[cur.box]*DAY;
+    st.srs[word] = cur; save(); updateBadge();
+  }
+  function dueWords(){
+    const st = langState(), now = Date.now();
+    const map = {}; allWords().forEach(w=>map[w.w]=w);
+    return Object.entries(st.srs).filter(([w,v])=>v.due<=now && map[w]).map(([w])=>map[w]);
+  }
+  function updateBadge(){
+    const n = dueWords().length, b = $('#reviewBadge');
+    b.style.display = n? 'inline-block':'none'; b.textContent = n;
+  }
+
+  /* ── 라우팅 ─────────────────────────────────────── */
+  function go(name, arg){
+    view = {name, arg}; quiz=null; flash=null;
+    render(); window.scrollTo(0,0);
+  }
+
+  function render(){
+    const el = $('#app');
+    if(!pack()){ el.innerHTML = '<div class="empty">언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.</div>'; return; }
+    if(view.name==='home') el.innerHTML = homeView();
+    else if(view.name==='level') el.innerHTML = levelView(view.arg);
+    else if(view.name==='review') el.innerHTML = reviewView();
+    Object.keys(window.__blocks||{}).forEach(paintBlocks); // 블록 문제 초기 페인트
+    updateBadge();
+  }
+
+  /* ── 홈: 레벨 지도 ──────────────────────────────── */
+  function phaseLabel(p){
+    return {intro:'기초 다지기', A:'Phase A · 블록 조립', B:'Phase B · 확장/빈칸', C:'Phase C · 자유 작문'}[p] || '';
+  }
+  function homeView(){
+    const p = pack(), st = langState();
+    const totalWords = allWords().length;
+    const learned = Object.values(st.srs).filter(v=>v.box>=2).length;
+    let cards = p.levels.map(L=>{
+      const locked = L.level > st.unlocked;
+      const best = st.quizBest[L.level];
+      const doneMap = st.doneEx['L'+L.level]||{};
+      const exDone = Object.keys(doneMap).length;
+      const exTotal = (L.exercises||[]).length;
+      const pct = exTotal? Math.round(exDone/exTotal*100) : 0;
+      return `<div class="levelcard ${locked?'locked':''}" ${locked?'':`onclick="App.go('level',${L.level})"`}>
+        ${locked? '<span class="lockicon">🔒</span>' : `<span class="phase-tag">${esc(phaseLabel(L.phase))}</span>`}
+        <div class="lv">LEVEL ${L.level} · ${esc(L.cefr)}</div>
+        <h3>${esc(L.title)}</h3>
+        <div class="meta">단어 ${L.words.length}개 · 연습 ${exTotal}문항${best!=null? ` · 시험 최고 <b>${best}%</b>`:''}</div>
+        <div class="progressbar"><div style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+    return `<h1>${p.flag||''} ${esc(p.name)} <span class="pill">${esc(p.nativeName||'')}</span></h1>
+      <p class="sub" style="margin-bottom:18px">CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 ·
+      각 레벨의 <b>마일스톤 시험 ${PASS_SCORE}점 이상</b>이면 다음 레벨이 열립니다.</p>
+      <div class="levelgrid">${cards}</div>`;
+  }
+
+  /* ── 레벨 화면(탭: 단어/문법/연습/시험) ─────────── */
+  function levelView(lv){
+    const L = pack().levels.find(x=>x.level===lv);
+    if(!L) return '<div class="empty">레벨을 찾을 수 없습니다.</div>';
+    const tab = view.tab || 'words';
+    const tabs = [['words','📖 단어'],['flash','🃏 암기카드'],['grammar','📐 문법'],['ex','✏️ 연습'],['quiz','🏁 시험']]
+      .map(([k,label])=>`<button class="${tab===k?'on':''}" onclick="App.tab('${k}')">${label}</button>`).join('');
+    let body='';
+    if(tab==='words') body = wordsTab(L);
+    else if(tab==='flash') body = flashTab(L);
+    else if(tab==='grammar') body = grammarTab(L);
+    else if(tab==='ex') body = exTab(L);
+    else if(tab==='quiz') body = quizTab(L);
+    return `<span class="backlink" onclick="App.go('home')">← 레벨 지도로</span>
+      <h1>Level ${L.level} — ${esc(L.title)} <span class="pill">${esc(L.cefr)}</span> <span class="pill gray">${esc(phaseLabel(L.phase))}</span></h1>
+      <p class="sub" style="margin-bottom:14px">${esc(L.desc||'')}</p>
+      <div class="tabs">${tabs}</div>${body}`;
+  }
+  function tab(t){ view.tab=t; quiz=null; flash=null; render(); }
+
+  function wordsTab(L){
+    const rows = L.words.map(w=>`<tr>
+      <td class="w-word">${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}</td>
+      <td class="w-ipa">${esc(w.ipa||'')}</td>
+      <td>${esc(w.ko)}<div class="w-ipa">${esc(w.en||'')}</div></td>
+      <td>${w.ex? `${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>`:''}</td>
+      <td><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
+      ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
+    </tr>`).join('');
+    return `<div class="card"><table class="wordtable">
+      <tr><th>단어</th><th>발음(IPA)</th><th>뜻</th><th>예문</th><th>듣기</th></tr>${rows}</table></div>`;
+  }
+
+  /* ── 플래시카드 ─────────────────────────────────── */
+  function flashTab(L){
+    if(!flash) flash = {cards: shuffle(L.words), i:0, open:false};
+    if(flash.i >= flash.cards.length)
+      return `<div class="card flashwrap"><div class="scorebig">🎉</div>
+        <p class="resultmsg">이 레벨 단어를 모두 확인했습니다!</p>
+        <p class="sub" style="margin-top:6px">"몰라요"로 표시한 단어는 복습 큐에 들어갔습니다. 상단 🔁 복습에서 반복하세요.</p>
+        <div class="flashbtns"><button class="btn primary" onclick="App.flashRestart()">한 번 더</button></div></div>`;
+    const w = flash.cards[flash.i];
+    const front = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')} ${genderTag(w.gender)}</div>
+      <div class="ex sub">(카드를 누르면 뜻이 보입니다)</div>`;
+    const back = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')}</div>
+      <div class="meaning">${esc(w.ko)}</div>
+      ${w.ex? `<div class="ex">${esc(w.ex)}<br>${esc(w.exKo||'')}</div>`:''}`;
+    return `<div class="flashwrap">
+      <p class="sub">${flash.i+1} / ${flash.cards.length}</p>
+      <div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
+      <div class="flashbtns">
+        <button class="btn" onclick="App.speak('${jattr(w.w)}')">🔊 발음</button>
+        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">😵 몰라요</button>
+        <button class="btn good" onclick="App.flashMark(true)">😄 알아요</button>`
+        : `<button class="btn primary" onclick="App.flashFlip()">뜻 보기</button>`}
+      </div></div>`;
+  }
+  function flashFlip(){ if(flash){ flash.open=!flash.open; if(flash.open) speak(flash.cards[flash.i].w); render(); } }
+  function flashMark(known){ srsMark(flash.cards[flash.i].w, known); flash.i++; flash.open=false; render(); }
+  function flashRestart(){ flash=null; render(); }
+
+  function grammarTab(L){
+    if(!(L.grammar||[]).length) return '<div class="empty">이 레벨에는 별도 문법 노트가 없습니다.</div>';
+    return L.grammar.map(g=>`<div class="card"><div class="grammarbox"><h3>${esc(g.title)}</h3>${g.html}</div></div>`).join('');
+  }
+
+  /* ── 연습 문제 렌더러(4종: choice / blank / blocks / compose) ── */
+  function exTab(L){
+    if(!(L.exercises||[]).length) return '<div class="empty">연습 문제가 없습니다.</div>';
+    const html = L.exercises.map((ex,i)=>`<div class="card exercise" id="ex-${i}">
+      <div class="ex-num">문제 ${i+1} / ${L.exercises.length} ${langState().doneEx['L'+L.level]?.[i]? '<span class="pill green">완료</span>':''}</div>
+      ${renderExercise(ex, 'ex', i)}</div>`).join('');
+    return html;
+  }
+
+  function renderExercise(ex, ns, i){
+    const id = ns+'-'+i;
+    if(ex.type==='choice'){
+      return `<div class="ex-prompt">${esc(ex.q)}</div>
+        ${ex.audio? `<button class="btn" style="margin-bottom:10px" onclick="App.speak('${jattr(ex.audio)}')">🔊 듣기</button>`:''}
+        <div id="${id}-opts">${ex.options.map((o,oi)=>`<button class="choiceopt" onclick="App.pickChoice('${ns}',${i},${oi})">${esc(o)}</button>`).join('')}</div>
+        <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
+    }
+    if(ex.type==='blank'){
+      const parts = ex.text.split('___');
+      let line = '';
+      parts.forEach((p,pi)=>{
+        line += esc(p);
+        if(pi < parts.length-1) line += `<input class="blankinput" id="${id}-in-${pi}" autocomplete="off" autocapitalize="off">`;
+      });
+      const ansArr = Array.isArray(ex.answer)? ex.answer : [ex.answer];
+      let bi = 0;
+      const spoken = ex.text.replace(/___/g, () => ansArr[bi++] ?? ''); // 각 빈칸에 대응하는 정답으로 치환해 읽기
+      return `<div class="ex-prompt">${esc(ex.prompt||'빈칸을 채우세요.')} ${ex.ko?`<span class="sub">(${esc(ex.ko)})</span>`:''}</div>
+        <div class="blankline">${line}
+        <button class="speak" onclick="App.speak('${jattr(spoken)}')">🔊</button></div>
+        ${charBar(id)}
+        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkBlank('${ns}',${i})">확인</button></div>
+        <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
+    }
+    if(ex.type==='blocks'){
+      const answerTokens = ex.answer.split(' ');
+      const tokens = shuffle(answerTokens.concat(ex.distractors||[]));
+      window.__blocks = window.__blocks || {};
+      window.__blocks[id] = {pool: tokens, ans: [], solution: answerTokens};
+      return `<div class="ex-prompt">단어 블록을 순서대로 눌러 문장을 만드세요: <span class="sub">"${esc(ex.ko)}"</span></div>
+        <div class="blockanswer" id="${id}-ans"></div>
+        <div class="blockpool" id="${id}-pool"></div>
+        <div class="flashbtns" style="justify-content:flex-start">
+          <button class="btn primary" onclick="App.checkBlocks('${ns}',${i})">확인</button>
+          <button class="btn" onclick="App.resetBlocks('${ns}',${i})">다시</button>
+          <button class="btn" onclick="App.speak('${jattr(ex.answer)}')">🔊 정답 듣기</button></div>
+        <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
+    }
+    if(ex.type==='compose'){
+      return `<div class="ex-prompt">${esc(ex.prompt)}</div>
+        <textarea class="compose" id="${id}-in" placeholder="여기에 문장을 입력하세요..."></textarea>
+        ${charBar(id, true)}
+        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkCompose('${ns}',${i})">피드백 받기</button></div>
+        <div class="feedback" id="${id}-fb"></div>`;
+    }
+    return '';
+  }
+  function charBar(id, ta){
+    const chars = pack().specialChars||[];
+    if(!chars.length) return '';
+    return `<div class="charbar">${chars.map(c=>`<button onclick="App.insertChar('${id}','${c}',${!!ta})">${c}</button>`).join('')}</div>`;
+  }
+  function insertChar(id, c, ta){
+    const el = ta? document.getElementById(id+'-in')
+      : (document.activeElement.classList?.contains('blankinput') ? document.activeElement : document.getElementById(id+'-in-0'));
+    if(!el) return;
+    const s = el.selectionStart??el.value.length, e2 = el.selectionEnd??el.value.length;
+    el.value = el.value.slice(0,s)+c+el.value.slice(e2);
+    el.focus(); el.selectionStart = el.selectionEnd = s+1;
+  }
+
+  function currentItems(ns){
+    if(ns==='ex'){ const L = pack().levels.find(x=>x.level===view.arg); return L.exercises; }
+    return quiz.items;
+  }
+  function fb(id, cls, html){
+    const f = document.getElementById(id+'-fb');
+    f.className = 'feedback show '+cls; f.innerHTML = html;
+  }
+  function markDone(ns, i, correct){
+    if(ns==='ex' && correct){
+      const st = langState(); const key='L'+view.arg;
+      st.doneEx[key] = st.doneEx[key]||{}; st.doneEx[key][i]=true; save();
+      const numEl = document.querySelector('#ex-'+i+' .ex-num');
+      if(numEl && !numEl.querySelector('.pill')) numEl.insertAdjacentHTML('beforeend',' <span class="pill green">완료</span>');
+    }
+    if(ns==='quiz'){ quiz.graded[i] = !!correct; }
+  }
+
+  /* 채점: choice */
+  function pickChoice(ns, i, oi){
+    const ex = currentItems(ns)[i], id = ns+'-'+i;
+    const opts = document.querySelectorAll('#'+id+'-opts .choiceopt');
+    if(quizLockedOrDone(ns,i)) return;
+    opts.forEach((b,bi)=>{
+      b.disabled = true;
+      if(bi===ex.answer) b.classList.add('correct');
+      else if(bi===oi) b.classList.add('wrong');
+    });
+    const ok = oi===ex.answer;
+    fb(id, ok?'ok':'no', ok? '✅ 정답입니다!' : `❌ 정답은 "<b>${esc(ex.options[ex.answer])}</b>" 입니다.${ex.why? '<br>'+esc(ex.why):''}`);
+    markDone(ns,i,ok); afterGrade(ns);
+  }
+  /* 채점: blank */
+  function checkBlank(ns, i){
+    const ex = currentItems(ns)[i], id = ns+'-'+i;
+    if(quizLockedOrDone(ns,i)) return;
+    const answers = Array.isArray(ex.answer)? ex.answer : [ex.answer];
+    let allOk = true, got=[];
+    answers.forEach((a,ai)=>{
+      const inp = document.getElementById(id+'-in-'+ai);
+      const val = inp? inp.value : '';
+      got.push(val);
+      const accepted = [a].concat(ex.accept?.[ai]||ex.accept||[]).filter(x=>typeof x==='string');
+      if(!accepted.some(acc=>norm(acc)===norm(val))) allOk=false;
+    });
+    fb(id, allOk?'ok':'no', allOk? '✅ 정답입니다!'
+      : `❌ 정답: <b>${answers.map(esc).join(', ')}</b>${ex.why? '<br>'+esc(ex.why):''}`);
+    markDone(ns,i,allOk); afterGrade(ns);
+  }
+  /* 채점: blocks */
+  function paintBlocks(id){
+    const B = window.__blocks[id]; if(!B) return;
+    const pool = document.getElementById(id+'-pool'), ans = document.getElementById(id+'-ans');
+    if(!pool||!ans) return;
+    pool.innerHTML = B.pool.map((t,ti)=>`<button class="block" onclick="App.moveBlock('${id}',${ti},true)">${esc(t)}</button>`).join('');
+    ans.innerHTML = B.ans.map((t,ti)=>`<button class="block" onclick="App.moveBlock('${id}',${ti},false)">${esc(t)}</button>`).join('')
+      || '<span class="sub" style="align-self:center">여기에 문장이 조립됩니다</span>';
+  }
+  function moveBlock(id, ti, toAns){
+    const B = window.__blocks[id];
+    if(toAns){ B.ans.push(B.pool.splice(ti,1)[0]); } else { B.pool.push(B.ans.splice(ti,1)[0]); }
+    paintBlocks(id);
+  }
+  function resetBlocks(ns,i){
+    const id=ns+'-'+i, B=window.__blocks[id];
+    B.pool = shuffle(B.pool.concat(B.ans)); B.ans=[]; paintBlocks(id);
+    const f=document.getElementById(id+'-fb'); f.className='feedback';
+  }
+  function checkBlocks(ns, i){
+    const ex = currentItems(ns)[i], id = ns+'-'+i, B = window.__blocks[id];
+    if(quizLockedOrDone(ns,i)) return;
+    const ok = norm(B.ans.join(' ')) === norm(ex.answer);
+    fb(id, ok?'ok':'no', ok? `✅ 정답입니다! — "${esc(ex.answer)}"`
+      : `❌ 정답: <b>${esc(ex.answer)}</b>${ex.why? '<br>'+esc(ex.why):''}`);
+    if(ok) speak(ex.answer);
+    markDone(ns,i,ok); afterGrade(ns);
+  }
+  /* 채점: compose(자유 작문 휴리스틱 피드백) */
+  function checkCompose(ns, i){
+    const ex = currentItems(ns)[i], id = ns+'-'+i;
+    const val = document.getElementById(id+'-in').value.trim();
+    const issues = [];
+    const words = val.split(/\s+/).filter(Boolean);
+    if(words.length < (ex.minWords||5)) issues.push(`문장이 너무 짧습니다 (최소 ${ex.minWords||5}단어).`);
+    (ex.mustInclude||[]).forEach(k=>{
+      const keys = Array.isArray(k)? k : [k];
+      if(!keys.some(kk=>norm(val).includes(norm(kk)))) issues.push(`"${keys[0]}" (또는 그 활용형)을 사용해 보세요.`);
+    });
+    if(val && val[0] !== val[0].toUpperCase()) issues.push('문장은 대문자로 시작하세요.');
+    if(val && !/[.!?]$/.test(val)) issues.push('문장 끝에 마침표(.), 물음표(?) 등을 붙이세요.');
+    const ok = val && issues.length===0;
+    fb(id, ok?'ok':'info', ok
+      ? `✅ 조건을 모두 충족했습니다!<br><b>모범 답안:</b> ${esc(ex.sample)}<br><span class="sub">본인 문장과 비교해 보세요. (자동 채점은 형식 검사이며, 문법 정밀 검증은 사전·교사·AI로 이중 확인을 권장합니다)</span>`
+      : `📝 다듬을 점:<ul>${issues.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><span class="sub">힌트 모범 답안: ${esc(ex.sample)}</span>`);
+    markDone(ns,i,ok); afterGrade(ns);
+  }
+  function quizLockedOrDone(ns,i){ return ns==='quiz' && quiz && quiz.graded[i]!==undefined && quiz.graded[i]!==null; }
+
+  /* ── 마일스톤 시험 ──────────────────────────────── */
+  function quizTab(L){
+    const st = langState();
+    if(!quiz){
+      const best = st.quizBest[L.level];
+      return `<div class="card" style="text-align:center">
+        <h2>🏁 Level ${L.level} 마일스톤 시험</h2>
+        <p class="sub">${(L.quiz||[]).length}문항 · ${PASS_SCORE}점 이상이면 Level ${L.level+1}이 열립니다.
+        ${best!=null? `<br>지금까지 최고 점수: <b>${best}%</b>`:''}</p>
+        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">시험 시작</button></div></div>`;
+    }
+    if(quiz.finished){
+      const total = quiz.items.length;
+      const okCount = quiz.graded.filter(Boolean).length;
+      const score = Math.round(okCount/total*100);
+      const passed = score >= PASS_SCORE;
+      return `<div class="card">
+        <div class="scorebig" style="color:${passed?'var(--good)':'var(--bad)'}">${score}점</div>
+        <p class="resultmsg">${passed? `🎉 통과! Level ${L.level+1}이 열렸습니다.` : `아쉽습니다. ${PASS_SCORE}점 이상이 필요해요. 단어·연습 탭을 복습하고 재도전하세요!`}</p>
+        <div class="dots">${quiz.graded.map(g=>`<span class="${g?'ok':'no'}"></span>`).join('')}</div>
+        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">재응시</button>
+        <button class="btn" onclick="App.go('home')">레벨 지도로</button></div></div>`;
+    }
+    const html = quiz.items.map((ex,i)=>`<div class="card exercise">
+      <div class="ex-num">문항 ${i+1} / ${quiz.items.length}</div>${renderExercise(ex,'quiz',i)}</div>`).join('');
+    return `<div class="quizhead"><h2>시험 진행 중</h2><span class="pill" id="quizProg">0 / ${quiz.items.length}</span></div>
+      ${html}<div class="card" style="text-align:center" id="quizSubmitCard">
+      <p class="sub">모든 문항에 답하면 자동으로 채점이 완료됩니다.</p></div>`;
+  }
+  function startQuiz(){
+    const L = pack().levels.find(x=>x.level===view.arg);
+    quiz = {items: L.quiz||[], graded: new Array((L.quiz||[]).length).fill(null), finished:false};
+    render();
+  }
+  function afterGrade(ns){
+    if(ns!=='quiz'||!quiz) return;
+    const done = quiz.graded.filter(g=>g!==null).length;
+    const prog = $('#quizProg'); if(prog) prog.textContent = done+' / '+quiz.items.length;
+    if(done === quiz.items.length){
+      const okCount = quiz.graded.filter(Boolean).length;
+      const score = Math.round(okCount/quiz.items.length*100);
+      const st = langState(), L = view.arg;
+      st.quizBest[L] = Math.max(st.quizBest[L]||0, score);
+      if(score>=PASS_SCORE) st.unlocked = Math.max(st.unlocked, Math.min(L+1, pack().levels.length));
+      save();
+      setTimeout(()=>{ quiz.finished=true; render(); }, 900);
+    }
+  }
+
+  /* ── 복습(누적 SRS 큐) ──────────────────────────── */
+  function reviewView(){
+    const due = dueWords();
+    if(!flash){
+      if(!due.length) return `<h1>🔁 누적 복습</h1><div class="card empty">지금 복습할 단어가 없습니다.<br>
+        플래시카드에서 "몰라요"를 누르거나, 시간이 지나 복습 주기가 돌아오면 여기에 쌓입니다.</div>`;
+      flash = {cards: shuffle(due), i:0, open:false};
+    }
+    if(flash.i>=flash.cards.length)
+      return `<h1>🔁 누적 복습</h1><div class="card flashwrap"><div class="scorebig">✅</div>
+        <p class="resultmsg">오늘의 복습 완료!</p><div class="flashbtns"><button class="btn primary" onclick="App.go('home')">레벨 지도로</button></div></div>`;
+    const w = flash.cards[flash.i];
+    const front = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')} ${genderTag(w.gender)}</div>
+      <div class="ex sub">Level ${w.level} 단어 · 카드를 누르면 뜻이 보입니다</div>`;
+    const back = `<div class="big">${esc(w.w)}</div><div class="meaning">${esc(w.ko)}</div>
+      ${w.ex? `<div class="ex">${esc(w.ex)}<br>${esc(w.exKo||'')}</div>`:''}`;
+    return `<h1>🔁 누적 복습 <span class="pill">${flash.cards.length - flash.i}개 남음</span></h1>
+      <p class="sub">이전 레벨에서 배운 단어가 잊히지 않도록 간격 반복(SRS)으로 다시 나옵니다.</p>
+      <div class="flashwrap"><div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
+      <div class="flashbtns">
+        <button class="btn" onclick="App.speak('${jattr(w.w)}')">🔊 발음</button>
+        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">😵 몰라요</button>
+        <button class="btn good" onclick="App.flashMark(true)">😄 알아요</button>`
+        : `<button class="btn primary" onclick="App.flashFlip()">뜻 보기</button>`}
+      </div></div>`;
+  }
+
+  /* ── 언어 전환 & JSON 언어팩 가져오기 ───────────── */
+  function fillLangSelect(){
+    const sel = $('#langSelect');
+    sel.innerHTML = Object.values(LANGUAGE_PACKS)
+      .map(p=>`<option value="${p.id}" ${p.id===S.activeLang?'selected':''}>${p.flag||''} ${esc(p.name)}</option>`).join('');
+  }
+  function switchLang(id){
+    S.activeLang = id; save(); go('home'); fillLangSelect();
+  }
+  function importPack(input){
+    const f = input.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try{
+        const pk = JSON.parse(r.result);
+        registerLanguagePack(pk);
+        if(!LANGUAGE_PACKS[pk.id]) throw new Error('스키마 오류');
+        const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
+        customs[pk.id] = pk;
+        localStorage.setItem(PACKS_KEY, JSON.stringify(customs));
+        S.activeLang = pk.id; save(); fillLangSelect(); go('home');
+        alert(`언어팩 "${pk.name}" 을(를) 불러왔습니다! (이 브라우저에 저장됨)`);
+      }catch(e){ alert('언어팩을 읽을 수 없습니다: '+e.message+'\nlanguages/_template.js 의 스키마를 확인하세요.'); }
+    };
+    r.readAsText(f); input.value='';
+  }
+
+  /* ── 초기화 ─────────────────────────────────────── */
+  function init(){
+    // localStorage에 저장된 커스텀 JSON 팩 복원
+    try{
+      const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
+      Object.values(customs).forEach(registerLanguagePack);
+    }catch(e){}
+    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]) S.activeLang = Object.keys(LANGUAGE_PACKS)[0];
+    fillLangSelect(); render();
+  }
+
+  return {init, go, tab, speak, switchLang, importPack,
+    flashFlip, flashMark, flashRestart,
+    pickChoice, checkBlank, checkBlocks, checkCompose,
+    paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz};
+})();
+</script>
+
+<!-- ▼ 언어팩: 새 언어를 추가하려면 languages/xx.js 를 만들고 아래에 한 줄 추가하세요 -->
+<script src="languages/fr.js"></script>
+<script src="languages/es.js"></script>
+
+<script>window.addEventListener('DOMContentLoaded', () => App.init());</script>
+
+<!-- PWA: 서비스워커 등록 (설치 + 오프라인). file:// 로 열면 건너뜀 -->
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(err =>
+      console.warn('SW 등록 실패:', err));
+  });
+}
+</script>
+</body>
+</html>

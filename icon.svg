@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="3Ls">
+  <rect width="512" height="512" rx="112" fill="#3b5bdb"/>
+  <text x="50%" y="52%" text-anchor="middle" dominant-baseline="central"
+        font-family="'Segoe UI','Apple SD Gothic Neo',Arial,sans-serif"
+        font-size="230" font-weight="800" fill="#ffffff" letter-spacing="-8">3Ls</text>
+  <text x="50%" y="80%" text-anchor="middle" dominant-baseline="central"
+        font-family="'Segoe UI',Arial,sans-serif" font-size="52" font-weight="600"
+        fill="#c7d3fb" letter-spacing="2">LIBRARY</text>
+</svg>
