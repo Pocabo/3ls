@@ -7,7 +7,7 @@
    업데이트: 아래 CACHE 버전 숫자만 올리면(예: v1 → v2) 옛 캐시가 정리됩니다.
    경로는 모두 상대경로 → GitHub Pages 하위경로(/repo/)에서도 그대로 동작.
    ===================================================================== */
-const CACHE = '3ls-v1';
+const CACHE = '3ls-v2';
 
 // 오프라인 첫 실행에 필요한 앱 셸. 언어팩을 추가하면 여기에도 넣어주세요.
 const APP_SHELL = [
@@ -17,7 +17,8 @@ const APP_SHELL = [
   './icon.svg',
   './icon-maskable.svg',
   './languages/fr.js',
-  './languages/es.js'
+  './languages/es.js',
+  './languages/ja-food.js'
 ];
 
 // 설치: 앱 셸을 개별 캐시(하나가 실패해도 설치는 계속)

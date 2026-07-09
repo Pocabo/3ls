@@ -271,14 +271,20 @@ const App = (() => {
   function homeView(){
     const p = pack(), st = langState();
     const totalWords = allWords().length;
+    const dict = !!p.dictionary; // 사전 전용 팩: 잠금·시험 없음
     const learned = Object.values(st.srs).filter(v=>v.box>=2).length;
     let cards = p.levels.map(L=>{
-      const locked = L.level > st.unlocked;
+      const locked = !dict && L.level > st.unlocked;
       const best = st.quizBest[L.level];
       const doneMap = st.doneEx['L'+L.level]||{};
       const exDone = Object.keys(doneMap).length;
       const exTotal = (L.exercises||[]).length;
       const pct = exTotal? Math.round(exDone/exTotal*100) : 0;
+      if(dict) return `<div class="levelcard" onclick="App.go('level',${L.level})">
+        <span class="phase-tag">${L.words.length} 단어</span>
+        <h3 style="margin-top:2px">${esc(L.title)}</h3>
+        <div class="meta">${esc(L.sub||'눌러서 단어 보기')}</div>
+      </div>`;
       return `<div class="levelcard ${locked?'locked':''}" ${locked?'':`onclick="App.go('level',${L.level})"`}>
         ${locked? '<span class="lockicon">🔒</span>' : `<span class="phase-tag">${esc(phaseLabel(L.phase))}</span>`}
         <div class="lv">LEVEL ${L.level} · ${esc(L.cefr)}</div>
@@ -287,9 +293,12 @@ const App = (() => {
         <div class="progressbar"><div style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
+    const sub = dict
+      ? `${esc(p.desc||'사전 · 단어장')} · 총 <b>${totalWords}</b>개 단어 · 분류를 눌러 단어를 살펴보세요.`
+      : `CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 ·
+         각 레벨의 <b>마일스톤 시험 ${PASS_SCORE}점 이상</b>이면 다음 레벨이 열립니다.`;
     return `<h1>${p.flag||''} ${esc(p.name)} <span class="pill">${esc(p.nativeName||'')}</span></h1>
-      <p class="sub" style="margin-bottom:18px">CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 ·
-      각 레벨의 <b>마일스톤 시험 ${PASS_SCORE}점 이상</b>이면 다음 레벨이 열립니다.</p>
+      <p class="sub" style="margin-bottom:18px">${sub}</p>
       <div class="levelgrid">${cards}</div>`;
   }
 
@@ -297,8 +306,14 @@ const App = (() => {
   function levelView(lv){
     const L = pack().levels.find(x=>x.level===lv);
     if(!L) return '<div class="empty">레벨을 찾을 수 없습니다.</div>';
-    const tab = view.tab || 'words';
-    const tabs = [['words','📖 단어'],['flash','🃏 암기카드'],['grammar','📐 문법'],['ex','✏️ 연습'],['quiz','🏁 시험']]
+    const dict = !!pack().dictionary;
+    let tab = view.tab || 'words';
+    // 사전 팩은 '단어' 탭만 제공 (시험·연습·암기카드 없음)
+    const tabDefs = dict
+      ? [['words','📖 단어']]
+      : [['words','📖 단어'],['flash','🃏 암기카드'],['grammar','📐 문법'],['ex','✏️ 연습'],['quiz','🏁 시험']];
+    if(!tabDefs.some(([k])=>k===tab)) tab='words';
+    const tabs = tabDefs
       .map(([k,label])=>`<button class="${tab===k?'on':''}" onclick="App.tab('${k}')">${label}</button>`).join('');
     let body='';
     if(tab==='words') body = wordsTab(L);
@@ -306,9 +321,12 @@ const App = (() => {
     else if(tab==='grammar') body = grammarTab(L);
     else if(tab==='ex') body = exTab(L);
     else if(tab==='quiz') body = quizTab(L);
-    return `<span class="backlink" onclick="App.go('home')">← 레벨 지도로</span>
-      <h1>Level ${L.level} — ${esc(L.title)} <span class="pill">${esc(L.cefr)}</span> <span class="pill gray">${esc(phaseLabel(L.phase))}</span></h1>
-      <p class="sub" style="margin-bottom:14px">${esc(L.desc||'')}</p>
+    const cefrPill = L.cefr? ` <span class="pill">${esc(L.cefr)}</span>`:'';
+    const phasePill = (!dict && phaseLabel(L.phase))? ` <span class="pill gray">${esc(phaseLabel(L.phase))}</span>`:'';
+    const head = dict? `${esc(L.title)}` : `Level ${L.level} — ${esc(L.title)}`;
+    return `<span class="backlink" onclick="App.go('home')">← ${dict?'분류 목록으로':'레벨 지도로'}</span>
+      <h1>${head}${cefrPill}${phasePill}</h1>
+      ${L.desc? `<p class="sub" style="margin-bottom:14px">${esc(L.desc)}</p>`:''}
       <div class="tabs">${tabs}</div>${body}`;
   }
   function tab(t){ view.tab=t; quiz=null; flash=null; render(); }
@@ -317,7 +335,7 @@ const App = (() => {
     const rows = L.words.map(w=>`<tr>
       <td class="w-word">${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}</td>
       <td class="w-ipa">${esc(w.ipa||'')}</td>
-      <td>${esc(w.ko)}<div class="w-ipa">${esc(w.en||'')}</div></td>
+      <td>${esc(w.ko)}<div class="w-ipa">${esc(w.en||'')}</div>${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}</td>
       <td>${w.ex? `${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>`:''}</td>
       <td><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
       ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
@@ -652,6 +670,7 @@ const App = (() => {
 <!-- ▼ 언어팩: 새 언어를 추가하려면 languages/xx.js 를 만들고 아래에 한 줄 추가하세요 -->
 <script src="languages/fr.js"></script>
 <script src="languages/es.js"></script>
+<script src="languages/ja-food.js"></script>
 
 <script>window.addEventListener('DOMContentLoaded', () => App.init());</script>
 
