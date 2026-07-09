@@ -14,17 +14,27 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="3Ls">
 <style>
-:root{
+:root{ /* 라이트 (기본) */
   --bg:#f6f7fb; --card:#ffffff; --ink:#1c2233; --sub:#5b6478; --line:#e3e7f0;
   --accent:#3b5bdb; --accent-soft:#e7ecfd; --good:#2f9e44; --good-soft:#e6f7ea;
   --bad:#e03131; --bad-soft:#fdecec; --warn:#e8890c; --warn-soft:#fdf3e3;
   --lock:#aab1c2; --radius:14px; --shadow:0 1px 3px rgba(20,30,60,.08),0 8px 24px rgba(20,30,60,.06);
 }
+/* 다크 값 (수동으로 다크 선택 시) */
+:root[data-theme="dark"]{
+  --bg:#12141c; --card:#1c2030; --ink:#e8ebf5; --sub:#9aa3b8; --line:#2b3147;
+  --accent:#748ffc; --accent-soft:#26304f; --good:#51cf66; --good-soft:#1e3527;
+  --bad:#ff6b6b; --bad-soft:#3d2426; --warn:#ffa94d; --warn-soft:#3a2f1d; --lock:#555d73;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+}
+/* 시스템 다크 — 사용자가 수동 지정(data-theme) 안 했을 때만 적용 */
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#12141c; --card:#1c2030; --ink:#e8ebf5; --sub:#9aa3b8; --line:#2b3147;
+  :root:not([data-theme]){
+    --bg:#12141c; --card:#1c2030; --ink:#e8ebf5; --sub:#9aa3b8; --line:#2b3147;
     --accent:#748ffc; --accent-soft:#26304f; --good:#51cf66; --good-soft:#1e3527;
     --bad:#ff6b6b; --bad-soft:#3d2426; --warn:#ffa94d; --warn-soft:#3a2f1d; --lock:#555d73;
-    --shadow:0 1px 3px rgba(0,0,0,.4); }
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
 }
 *{box-sizing:border-box; margin:0; padding:0}
 html{-webkit-text-size-adjust:100%}
@@ -40,7 +50,29 @@ header .spacer{flex:1}
 .hbtn{padding:7px 13px; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-weight:600; white-space:nowrap}
 .hbtn:hover{filter:brightness(.96)}
 .hbtn .badge{background:var(--bad); color:#fff; border-radius:99px; font-size:.72rem; padding:1px 7px; margin-left:4px}
-main{max-width:900px; margin:0 auto; padding:22px 16px 80px}
+/* ── 헤더 메뉴 드롭다운 ── */
+.menu-wrap{position:relative}
+.menu-panel{position:absolute; top:calc(100% + 8px); right:0; min-width:210px; background:var(--card);
+  border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 30px rgba(20,30,60,.18);
+  padding:6px; z-index:30; display:none}
+.menu-panel.open{display:block}
+.menu-label{font-size:.72rem; color:var(--sub); font-weight:700; padding:8px 10px 4px; letter-spacing:.3px}
+.menu-item{display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 10px;
+  border-radius:9px; font-weight:600; font-size:.92rem; color:var(--ink)}
+.menu-item:hover{background:var(--accent-soft)}
+.menu-item .r{margin-left:auto; color:var(--sub); font-weight:600; font-size:.85rem}
+.menu-sep{height:1px; background:var(--line); margin:6px 4px}
+/* ── 표 가로 스크롤 (모바일에서 UI 밖으로 안 나가게) ── */
+.table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px}
+.table-wrap .wordtable{min-width:560px}
+main{max-width:900px; margin:0 auto; padding:22px 16px 80px; overflow-x:hidden}
+/* ── 좁은 화면: 헤더가 넘치지 않도록 축소 ── */
+@media (max-width:420px){
+  header{padding:9px 12px; gap:7px}
+  header .logo{font-size:1rem}
+  #langSelect{max-width:118px; min-width:0}
+  .hbtn{padding:7px 10px}
+}
 .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:16px}
 h1{font-size:1.5rem; margin-bottom:4px}
 h2{font-size:1.15rem; margin-bottom:10px}
@@ -153,7 +185,16 @@ a{color:var(--accent)}
   <div class="spacer"></div>
   <select id="langSelect" onchange="App.switchLang(this.value)" title="학습 언어 선택"></select>
   <button class="hbtn" onclick="App.go('review')">🔁 복습<span class="badge" id="reviewBadge" style="display:none">0</span></button>
-  <button class="hbtn" onclick="document.getElementById('packFile').click()" title="JSON 언어팩 가져오기">＋ 언어팩</button>
+  <div class="menu-wrap">
+    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false">⚙ 메뉴</button>
+    <div class="menu-panel" id="menuPanel">
+      <div class="menu-label">화면</div>
+      <button class="menu-item" onclick="App.cycleTheme()">🌗 테마 <span class="r" id="themeLabel">시스템</span></button>
+      <div class="menu-sep"></div>
+      <div class="menu-label">언어팩</div>
+      <button class="menu-item" onclick="App.closeMenu(); document.getElementById('packFile').click()">＋ 언어팩 가져오기 (JSON)</button>
+    </div>
+  </div>
   <input type="file" id="packFile" accept=".json" style="display:none" onchange="App.importPack(this)">
 </header>
 <main id="app"></main>
@@ -340,8 +381,8 @@ const App = (() => {
       <td><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
       ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
     </tr>`).join('');
-    return `<div class="card"><table class="wordtable">
-      <tr><th>단어</th><th>발음(IPA)</th><th>뜻</th><th>예문</th><th>듣기</th></tr>${rows}</table></div>`;
+    return `<div class="card"><div class="table-wrap"><table class="wordtable">
+      <tr><th>단어</th><th>발음</th><th>뜻</th><th>예문</th><th>듣기</th></tr>${rows}</table></div></div>`;
   }
 
   /* ── 플래시카드 ─────────────────────────────────── */
@@ -649,8 +690,48 @@ const App = (() => {
     r.readAsText(f); input.value='';
   }
 
+  /* ── 테마 (시스템/라이트/다크 수동 전환) ────────── */
+  const THEME_KEY = '3ls.theme';
+  function currentTheme(){ return localStorage.getItem(THEME_KEY) || 'system'; }
+  function applyTheme(mode){
+    const root = document.documentElement;
+    if(mode==='light'||mode==='dark') root.setAttribute('data-theme', mode);
+    else root.removeAttribute('data-theme'); // system = 브라우저 설정 따름
+    const el = document.getElementById('themeLabel');
+    if(el) el.textContent = {system:'시스템', light:'라이트', dark:'다크'}[mode] || '시스템';
+    const isDark = mode==='dark' ||
+      (mode==='system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    const mc = document.querySelector('meta[name="theme-color"]');
+    if(mc) mc.setAttribute('content', isDark? '#1c2030' : '#ffffff');
+  }
+  function cycleTheme(){ // 시스템 → 라이트 → 다크 → 시스템
+    const order = ['system','light','dark'];
+    const next = order[(order.indexOf(currentTheme())+1) % order.length];
+    localStorage.setItem(THEME_KEY, next); applyTheme(next);
+  }
+
+  /* ── 헤더 메뉴 드롭다운 ─────────────────────────── */
+  function toggleMenu(e){
+    if(e) e.stopPropagation();
+    const p = document.getElementById('menuPanel'), b = document.getElementById('menuBtn');
+    const open = p.classList.toggle('open');
+    if(b) b.setAttribute('aria-expanded', open? 'true':'false');
+  }
+  function closeMenu(){
+    const p = document.getElementById('menuPanel'), b = document.getElementById('menuBtn');
+    if(p) p.classList.remove('open');
+    if(b) b.setAttribute('aria-expanded','false');
+  }
+
   /* ── 초기화 ─────────────────────────────────────── */
   function init(){
+    applyTheme(currentTheme());
+    // 메뉴 바깥 클릭 시 닫기
+    document.addEventListener('click', (e)=>{ if(!e.target.closest('.menu-wrap')) closeMenu(); });
+    // 시스템 테마 변경 시(시스템 모드일 때만) 상태바 색 갱신
+    if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', ()=>{
+      if(currentTheme()==='system') applyTheme('system');
+    });
     // localStorage에 저장된 커스텀 JSON 팩 복원
     try{
       const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
@@ -663,7 +744,8 @@ const App = (() => {
   return {init, go, tab, speak, switchLang, importPack,
     flashFlip, flashMark, flashRestart,
     pickChoice, checkBlank, checkBlocks, checkCompose,
-    paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz};
+    paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
+    cycleTheme, toggleMenu, closeMenu};
 })();
 </script>
 
