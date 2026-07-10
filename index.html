@@ -256,7 +256,7 @@ const App = (() => {
   /* 버전 규칙: MAJOR = 언어팩/콘텐츠 추가 · MINOR = UI·사용성 개선(메이저마다 0으로 리셋)
      자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과 service-worker.js의
      CACHE 상수를 함께 올려주세요(같은 문자열을 쓰면 캐시 버전=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.1.0';
+  const APP_VERSION = '4.2.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -413,17 +413,46 @@ const App = (() => {
   }
   function tab(t){ view.tab=t; quiz=null; flash=null; render(); }
 
+  /* ── 단어 표: 데이터에 존재하는 필드만 열로 렌더 ──────
+     예) 한자어 팩처럼 ex/exKo가 모두 비어 있으면 "예문" 열 자체가 사라진다.
+     새 언어팩이 어떤 필드를 채우든 표가 알아서 맞춰지므로 호환성이 높다. */
+  const someFilled = (words, fn) => words.some(w => { const v = fn(w); return v!=null && String(v).trim()!==''; });
+
+  function wordColumns(words, opts={}){
+    const cols = [];
+    if(opts.cat) cols.push({ th:'분류', thCls:'col-cat', tdCls:'w-ipa col-cat',
+      td: w => esc(w.catTitle||'') });
+
+    cols.push({ th:'단어', thCls:'col-word', tdCls:'w-word col-word',
+      td: w => `${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}` });
+
+    if(someFilled(words, w=>w.ipa)) cols.push({ th:'발음', thCls:'col-ipa', tdCls:'w-ipa col-ipa',
+      td: w => esc(w.ipa||'') });
+
+    if(someFilled(words, w=>w.ko) || someFilled(words, w=>w.en) || someFilled(words, w=>w.tip))
+      cols.push({ th:'뜻', thCls:'', tdCls:'',
+        td: w => `${esc(w.ko||'')}${w.en?`<div class="w-ipa">${esc(w.en)}</div>`:''}${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}` });
+
+    if(someFilled(words, w=>w.ex)) cols.push({ th:'예문', thCls:'', tdCls:'',
+      td: w => w.ex ? `${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}` : '' });
+
+    cols.push({ th:'듣기', thCls:'col-speak', tdCls:'col-speak',
+      td: w => `<button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>`
+        + (w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:'') });
+    return cols;
+  }
+
+  function wordTableHtml(words, opts={}){
+    const cols = wordColumns(words, opts);
+    const head = `<tr>${cols.map(c=>`<th${c.thCls?` class="${c.thCls}"`:''}>${c.th}</th>`).join('')}</tr>`;
+    const rows = words.map(w=>`<tr>${cols.map(c=>`<td${c.tdCls?` class="${c.tdCls}"`:''}>${c.td(w)}</td>`).join('')}</tr>`).join('');
+    // 열 수에 맞춰 최소 폭을 잡아, 열이 적은 팩은 모바일에서 불필요한 가로 스크롤이 안 생기게 함
+    const minW = Math.max(300, cols.length * 100);
+    return `<div class="table-wrap"><table class="wordtable" style="min-width:${minW}px">${head}${rows}</table></div>`;
+  }
+
   function wordsTab(L){
-    const rows = L.words.map(w=>`<tr>
-      <td class="w-word col-word">${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}</td>
-      <td class="w-ipa col-ipa">${esc(w.ipa||'')}</td>
-      <td>${esc(w.ko)}<div class="w-ipa">${esc(w.en||'')}</div>${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}</td>
-      <td>${w.ex? `${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>`:''}</td>
-      <td class="col-speak"><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
-      ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
-    </tr>`).join('');
-    return `<div class="card"><div class="table-wrap"><table class="wordtable">
-      <tr><th class="col-word">단어</th><th class="col-ipa">발음</th><th>뜻</th><th>예문</th><th class="col-speak">듣기</th></tr>${rows}</table></div></div>`;
+    return `<div class="card">${wordTableHtml(L.words)}</div>`;
   }
 
   /* ── 단어은행: 현재 언어팩의 모든 단어를 검색·필터 ─ */
@@ -442,17 +471,7 @@ const App = (() => {
   function wbTableHtml(){
     const words = wbFilteredWords();
     if(!words.length) return `<div class="empty" style="padding:26px 0">검색 결과가 없습니다.</div>`;
-    const rows = words.map(w=>`<tr>
-      <td class="w-ipa col-cat">${esc(w.catTitle)}</td>
-      <td class="w-word col-word">${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}</td>
-      <td class="w-ipa col-ipa">${esc(w.ipa||'')}</td>
-      <td>${esc(w.ko)}<div class="w-ipa">${esc(w.en||'')}</div>${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}</td>
-      <td>${w.ex? `${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>`:''}</td>
-      <td class="col-speak"><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
-      ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
-    </tr>`).join('');
-    return `<div class="table-wrap"><table class="wordtable">
-      <tr><th class="col-cat">분류</th><th class="col-word">단어</th><th class="col-ipa">발음</th><th>뜻</th><th>예문</th><th class="col-speak">듣기</th></tr>${rows}</table></div>`;
+    return wordTableHtml(words, {cat:true});
   }
   function wbCardsHtml(){
     const words = wbFilteredWords();
@@ -466,10 +485,10 @@ const App = (() => {
         </div>
         <div class="wb-card-back">
           ${w.ipa? `<div class="w-ipa">${esc(w.ipa)}</div>`:''}
-          <div class="wb-card-ko">${esc(w.ko)}</div>
+          ${w.ko? `<div class="wb-card-ko">${esc(w.ko)}</div>`:''}
           ${w.en? `<div class="w-ipa">${esc(w.en)}</div>`:''}
           ${w.plural? `<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}
-          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>
+          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}
             <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button></div>`:''}
           ${w.tip? `<div class="hint">💡 ${esc(w.tip)}</div>`:''}
         </div>
