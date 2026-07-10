@@ -186,7 +186,21 @@ a{color:var(--accent)}
 .wb-chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px}
 .wb-chip{padding:6px 12px; border-radius:99px; border:1px solid var(--line); background:var(--bg); font-size:.83rem; font-weight:600; color:var(--sub)}
 .wb-chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
-.wb-count{color:var(--sub); font-size:.85rem; margin-bottom:8px}
+.wb-count{color:var(--sub); font-size:.85rem}
+.wb-bar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap}
+.wb-mode{display:flex; gap:6px}
+/* 단어은행 카드 모드: 원어만 → 누르면 뜻·발음 펼침 */
+.wb-cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px}
+.wb-card{border:1px solid var(--line); border-radius:12px; background:var(--bg); padding:12px 14px;
+  cursor:pointer; user-select:none; transition:border-color .12s}
+.wb-card:hover{border-color:var(--accent)}
+.wb-card-front{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.wb-card-word{font-weight:800; font-size:1.05rem}
+.wb-card-back{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line)}
+.wb-card.open{border-color:var(--accent); background:var(--card)}
+.wb-card.open .wb-card-back{display:block}
+.wb-card-ko{font-weight:700; margin-top:2px}
+.wb-card-ex{margin-top:8px; font-size:.9rem}
 </style>
 </head>
 <body>
@@ -194,7 +208,7 @@ a{color:var(--accent)}
   <div class="logo" onclick="App.go('home')"><span class="dot"></span>3Ls</div>
   <div class="spacer"></div>
   <select id="langSelect" onchange="App.switchLang(this.value)" title="학습 언어 선택"></select>
-  <button class="hbtn" onclick="App.go('wordbank')" title="단어은행 — 전체 단어 검색"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> 단어은행</span></button>
+  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> 단어은행</span></button>
   <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> 복습</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
   <div class="menu-wrap">
     <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> 메뉴</span></button>
@@ -234,7 +248,7 @@ const App = (() => {
   /* 버전 규칙: MAJOR = 언어팩/콘텐츠 추가 · MINOR = UI·사용성 개선(메이저마다 0으로 리셋)
      자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과 service-worker.js의
      CACHE 상수를 함께 올려주세요(같은 문자열을 쓰면 캐시 버전=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '3.2';
+  const APP_VERSION = '3.3';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -417,10 +431,10 @@ const App = (() => {
       norm(w.ex||'').includes(q) || norm(w.ipa||'').includes(q));
     return words;
   }
-  function wbRowsHtml(){
+  function wbTableHtml(){
     const words = wbFilteredWords();
-    if(!words.length) return `<tr><td colspan="6" class="empty" style="padding:26px 0">검색 결과가 없습니다.</td></tr>`;
-    return words.map(w=>`<tr>
+    if(!words.length) return `<div class="empty" style="padding:26px 0">검색 결과가 없습니다.</div>`;
+    const rows = words.map(w=>`<tr>
       <td class="w-ipa">${esc(w.catTitle)}</td>
       <td class="w-word">${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}</td>
       <td class="w-ipa">${esc(w.ipa||'')}</td>
@@ -429,33 +443,64 @@ const App = (() => {
       <td><button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
       ${w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:''}</td>
     </tr>`).join('');
+    return `<div class="table-wrap"><table class="wordtable">
+      <tr><th>분류</th><th>단어</th><th>발음</th><th>뜻</th><th>예문</th><th>듣기</th></tr>${rows}</table></div>`;
   }
+  function wbCardsHtml(){
+    const words = wbFilteredWords();
+    if(!words.length) return `<div class="empty" style="padding:26px 0">검색 결과가 없습니다.</div>`;
+    // 카드: 원어만 보이고, 누르면 발음·뜻·예문이 아래에 펼쳐짐
+    return `<div class="wb-cards">` + words.map(w=>`
+      <div class="wb-card" onclick="this.classList.toggle('open')">
+        <div class="wb-card-front">
+          <span class="wb-card-word">${esc(w.w)}${genderTag(w.gender)}</span>
+          <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
+        </div>
+        <div class="wb-card-back">
+          ${w.ipa? `<div class="w-ipa">${esc(w.ipa)}</div>`:''}
+          <div class="wb-card-ko">${esc(w.ko)}</div>
+          ${w.en? `<div class="w-ipa">${esc(w.en)}</div>`:''}
+          ${w.plural? `<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}
+          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}<div class="w-ipa">${esc(w.exKo||'')}</div>
+            <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button></div>`:''}
+          ${w.tip? `<div class="hint">💡 ${esc(w.tip)}</div>`:''}
+        </div>
+      </div>`).join('') + `</div>`;
+  }
+  function wbResultsHtml(){ return wbState.mode==='cards'? wbCardsHtml() : wbTableHtml(); }
   function wordbankView(){
     const p = pack();
-    if(!wbState) wbState = {q:'', cat:'all'};
+    if(!wbState) wbState = {q:'', cat:'all', mode: localStorage.getItem('3ls.wbMode')||'table'};
     const total = allWords().length;
     const chips = [{id:'all', label:'전체'}, ...p.levels.map(L=>({id:L.level, label:L.title}))]
       .map(c=>`<button class="wb-chip ${String(wbState.cat)===String(c.id)?'on':''}" onclick="App.wbSetCat('${c.id}')">${esc(c.label)}</button>`)
       .join('');
+    const m = wbState.mode;
     return `<h1>📚 ${esc(p.name)} 단어은행</h1>
       <p class="sub" style="margin-bottom:16px">${esc(p.nativeName||'')} 전체 <b>${total}</b>개 단어 · 레벨/분류를 넘나들며 검색할 수 있습니다.</p>
       <div class="card">
         <input type="search" id="wbSearch" class="wb-search" placeholder="단어·뜻·예문으로 검색..." value="${esc(wbState.q)}" oninput="App.wbSetQuery(this.value)">
         <div class="wb-chips">${chips}</div>
-        <div class="wb-count" id="wbCount">${wbFilteredWords().length}개 표시 중</div>
-        <div class="table-wrap"><table class="wordtable">
-          <tr><th>분류</th><th>단어</th><th>발음</th><th>뜻</th><th>예문</th><th>듣기</th></tr>
-          <tbody id="wbRows">${wbRowsHtml()}</tbody>
-        </table></div>
+        <div class="wb-bar">
+          <span class="wb-count" id="wbCount">${wbFilteredWords().length}개 표시 중</span>
+          <div class="wb-mode">
+            <button class="wb-chip ${m==='table'?'on':''}" onclick="App.wbSetMode('table')">📋 표</button>
+            <button class="wb-chip ${m==='cards'?'on':''}" onclick="App.wbSetMode('cards')">🃏 카드</button>
+          </div>
+        </div>
+        <div id="wbResults">${wbResultsHtml()}</div>
       </div>`;
   }
   function wbSetQuery(v){
     wbState.q = v;
-    const rows = $('#wbRows'), cnt = $('#wbCount');
-    if(rows) rows.innerHTML = wbRowsHtml();
+    const res = $('#wbResults'), cnt = $('#wbCount');
+    if(res) res.innerHTML = wbResultsHtml();
     if(cnt) cnt.textContent = wbFilteredWords().length + '개 표시 중';
   }
   function wbSetCat(id){ wbState.cat = id; render(); }
+  function wbSetMode(m){ wbState.mode = m; localStorage.setItem('3ls.wbMode', m); render(); }
+  // 📚 버튼 토글: 단어은행이 열려 있으면 학습 홈으로, 아니면 단어은행으로
+  function toggleWordbank(){ go(view.name==='wordbank' ? 'home' : 'wordbank'); }
 
   /* ── 플래시카드 ─────────────────────────────────── */
   function flashTab(L){
@@ -820,7 +865,7 @@ const App = (() => {
     flashFlip, flashMark, flashRestart,
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
-    wbSetQuery, wbSetCat,
+    wbSetQuery, wbSetCat, wbSetMode, toggleWordbank,
     cycleTheme, toggleMenu, closeMenu};
 })();
 </script>
