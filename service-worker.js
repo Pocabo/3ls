@@ -19,7 +19,8 @@ const APP_SHELL = [
   './icon-maskable.svg',
   './languages/fr.js',
   './languages/es.js',
-  './languages/ja-food.js'
+  './languages/ja-food.js',
+  './languages/hanja-words.js'
 ];
 
 // 설치: 앱 셸을 개별 캐시(하나가 실패해도 설치는 계속)
