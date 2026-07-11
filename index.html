@@ -38,7 +38,8 @@
 }
 *{box-sizing:border-box; margin:0; padding:0}
 html{-webkit-text-size-adjust:100%}
-body{font-family:'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6}
+body{font-family:'Segoe UI','Apple SD Gothic Neo','Noto Sans KR',sans-serif; background:var(--bg); color:var(--ink); line-height:1.6;
+  word-break:keep-all} /* 한국어: 글자 단위가 아니라 어절(공백) 단위로만 줄바꿈 */
 button{font:inherit; cursor:pointer; border:none; background:none; color:inherit}
 input,textarea,select{font:inherit; color:inherit}
 header{position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--line);
@@ -195,6 +196,11 @@ a{color:var(--accent)}
 .wb-chip{padding:6px 12px; border-radius:99px; border:1px solid var(--line); background:var(--bg); font-size:.83rem; font-weight:600; color:var(--sub)}
 .wb-chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
 .wb-count{color:var(--sub); font-size:.85rem}
+/* 열 접기 바: 표시 중인 열(on) / 접힌 열(회색) 칩 */
+.col-toggle{display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:10px}
+.col-toggle-label{font-size:.78rem; color:var(--sub); font-weight:700; margin-right:2px}
+.col-toggle .wb-chip{font-size:.8rem; padding:4px 10px}
+.col-toggle .wb-chip:not(.on){opacity:.6; text-decoration:line-through}
 .wb-bar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap}
 .wb-mode{display:flex; gap:6px}
 /* 단어은행 카드 모드: 원어만 → 누르면 뜻·발음 펼침 */
@@ -256,7 +262,7 @@ const App = (() => {
   /* 버전 규칙: MAJOR = 언어팩/콘텐츠 추가 · MINOR = UI·사용성 개선(메이저마다 0으로 리셋)
      자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과 service-worker.js의
      CACHE 상수를 함께 올려주세요(같은 문자열을 쓰면 캐시 버전=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.2.0';
+  const APP_VERSION = '4.3.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -268,6 +274,7 @@ const App = (() => {
   let quiz = null;         // 진행 중 시험 상태
   let flash = null;        // 진행 중 플래시카드 상태
   let wbState = null;      // 단어은행 검색/필터 상태 {q, cat}
+  let colHidden = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('3ls.colHidden')||'[]'); }catch(e){ return []; } })()); // 표에서 접은 열
 
   /* ── 상태 저장/불러오기 ─────────────────────────── */
   function load(){
@@ -420,35 +427,48 @@ const App = (() => {
 
   function wordColumns(words, opts={}){
     const cols = [];
-    if(opts.cat) cols.push({ th:'분류', thCls:'col-cat', tdCls:'w-ipa col-cat',
+    // key: 접기 저장용 식별자 · collapsible: 사용자가 숨길 수 있는 열인지 (단어는 항상 표시)
+    if(opts.cat) cols.push({ key:'cat', th:'분류', collapsible:true, thCls:'col-cat', tdCls:'w-ipa col-cat',
       td: w => esc(w.catTitle||'') });
 
-    cols.push({ th:'단어', thCls:'col-word', tdCls:'w-word col-word',
+    cols.push({ key:'word', th:'단어', collapsible:false, thCls:'col-word', tdCls:'w-word col-word',
       td: w => `${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}` });
 
-    if(someFilled(words, w=>w.ipa)) cols.push({ th:'발음', thCls:'col-ipa', tdCls:'w-ipa col-ipa',
+    if(someFilled(words, w=>w.ipa)) cols.push({ key:'ipa', th:'발음', collapsible:true, thCls:'col-ipa', tdCls:'w-ipa col-ipa',
       td: w => esc(w.ipa||'') });
 
     if(someFilled(words, w=>w.ko) || someFilled(words, w=>w.en) || someFilled(words, w=>w.tip))
-      cols.push({ th:'뜻', thCls:'', tdCls:'',
+      cols.push({ key:'meaning', th:'뜻', collapsible:true, thCls:'', tdCls:'',
         td: w => `${esc(w.ko||'')}${w.en?`<div class="w-ipa">${esc(w.en)}</div>`:''}${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}` });
 
-    if(someFilled(words, w=>w.ex)) cols.push({ th:'예문', thCls:'', tdCls:'',
+    if(someFilled(words, w=>w.ex)) cols.push({ key:'ex', th:'예문', collapsible:true, thCls:'', tdCls:'',
       td: w => w.ex ? `${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}` : '' });
 
-    cols.push({ th:'듣기', thCls:'col-speak', tdCls:'col-speak',
+    cols.push({ key:'speak', th:'듣기', collapsible:true, thCls:'col-speak', tdCls:'col-speak',
       td: w => `<button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>`
         + (w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:'') });
     return cols;
   }
 
   function wordTableHtml(words, opts={}){
-    const cols = wordColumns(words, opts);
+    const allCols = wordColumns(words, opts);
+    // 접기 바: 숨길 수 있는(collapsible) 열만 칩으로 노출. on = 표시 중, 클릭 시 토글
+    const collapsible = allCols.filter(c => c.collapsible);
+    const bar = collapsible.length > 1 ? `<div class="col-toggle"><span class="col-toggle-label">열 접기</span>${
+      collapsible.map(c => `<button class="wb-chip ${colHidden.has(c.key)?'':'on'}" onclick="App.toggleCol('${c.key}')">${c.th}</button>`).join('')
+    }</div>` : '';
+    // 실제로 그릴 열 = collapsible이면서 숨김 처리된 것 제외
+    const cols = allCols.filter(c => !(c.collapsible && colHidden.has(c.key)));
     const head = `<tr>${cols.map(c=>`<th${c.thCls?` class="${c.thCls}"`:''}>${c.th}</th>`).join('')}</tr>`;
     const rows = words.map(w=>`<tr>${cols.map(c=>`<td${c.tdCls?` class="${c.tdCls}"`:''}>${c.td(w)}</td>`).join('')}</tr>`).join('');
     // 열 수에 맞춰 최소 폭을 잡아, 열이 적은 팩은 모바일에서 불필요한 가로 스크롤이 안 생기게 함
     const minW = Math.max(300, cols.length * 100);
-    return `<div class="table-wrap"><table class="wordtable" style="min-width:${minW}px">${head}${rows}</table></div>`;
+    return `${bar}<div class="table-wrap"><table class="wordtable" style="min-width:${minW}px">${head}${rows}</table></div>`;
+  }
+  function toggleCol(key){
+    if(colHidden.has(key)) colHidden.delete(key); else colHidden.add(key);
+    localStorage.setItem('3ls.colHidden', JSON.stringify([...colHidden]));
+    render();
   }
 
   function wordsTab(L){
@@ -892,7 +912,7 @@ const App = (() => {
     flashFlip, flashMark, flashRestart,
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
-    wbSetQuery, wbSetCat, wbSetMode, toggleWordbank,
+    wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
     cycleTheme, toggleMenu, closeMenu};
 })();
 </script>
