@@ -262,7 +262,7 @@ const App = (() => {
   /* 버전 규칙: MAJOR = 언어팩/콘텐츠 추가 · MINOR = UI·사용성 개선(메이저마다 0으로 리셋)
      자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과 service-worker.js의
      CACHE 상수를 함께 올려주세요(같은 문자열을 쓰면 캐시 버전=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.3.0';
+  const APP_VERSION = '4.3.1';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -439,7 +439,7 @@ const App = (() => {
 
     if(someFilled(words, w=>w.ko) || someFilled(words, w=>w.en) || someFilled(words, w=>w.tip))
       cols.push({ key:'meaning', th:'뜻', collapsible:true, thCls:'', tdCls:'',
-        td: w => `${esc(w.ko||'')}${w.en?`<div class="w-ipa">${esc(w.en)}</div>`:''}${w.tip?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}` });
+        td: w => `${esc(w.ko||'')}${w.en?`<div class="w-ipa">${esc(w.en)}</div>`:''}${(w.tip && !colHidden.has('tip'))?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}` });
 
     if(someFilled(words, w=>w.ex)) cols.push({ key:'ex', th:'예문', collapsible:true, thCls:'', tdCls:'',
       td: w => w.ex ? `${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}` : '' });
@@ -452,10 +452,12 @@ const App = (() => {
 
   function wordTableHtml(words, opts={}){
     const allCols = wordColumns(words, opts);
-    // 접기 바: 숨길 수 있는(collapsible) 열만 칩으로 노출. on = 표시 중, 클릭 시 토글
-    const collapsible = allCols.filter(c => c.collapsible);
-    const bar = collapsible.length > 1 ? `<div class="col-toggle"><span class="col-toggle-label">열 접기</span>${
-      collapsible.map(c => `<button class="wb-chip ${colHidden.has(c.key)?'':'on'}" onclick="App.toggleCol('${c.key}')">${c.th}</button>`).join('')
+    // 접기 대상: 숨길 수 있는(collapsible) 열 + 팁(뜻 열 안의 💡 줄만 별도로 숨김)
+    const toggles = allCols.filter(c => c.collapsible).map(c => ({key:c.key, label:c.th}));
+    if(someFilled(words, w=>w.tip)) toggles.push({key:'tip', label:'💡팁'});
+    // on = 표시 중, 클릭 시 토글
+    const bar = toggles.length > 1 ? `<div class="col-toggle"><span class="col-toggle-label">열 접기</span>${
+      toggles.map(t => `<button class="wb-chip ${colHidden.has(t.key)?'':'on'}" onclick="App.toggleCol('${t.key}')">${t.label}</button>`).join('')
     }</div>` : '';
     // 실제로 그릴 열 = collapsible이면서 숨김 처리된 것 제외
     const cols = allCols.filter(c => !(c.collapsible && colHidden.has(c.key)));

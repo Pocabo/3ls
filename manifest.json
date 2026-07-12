@@ -1,6 +1,6 @@
 {
   "_comment": "version은 PWA 표준 필드가 아니며 브라우저가 무시합니다. index.html의 APP_VERSION과 맞춰 사람이 참고하는 용도입니다.",
-  "version": "4.3.0",
+  "version": "4.3.1",
   "name": "3Ls — Language Learning Library",
   "short_name": "3Ls",
   "description": "CEFR 기반 다국어 학습 PWA. 오프라인 지원, 데이터 주도형 언어팩 구조.",
