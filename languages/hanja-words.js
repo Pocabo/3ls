@@ -10,6 +10,7 @@ registerLanguagePack({
   nativeName: '漢字語',
   flag: '🇰🇷',
   tts: 'ko-KR',
+  parent: 'kr',        // 한국어(kr) 하위 사전 — 언어 선택 화면의 "한국어" 카드 ▾ 에서 접근
   dictionary: true,
   desc: '한자어 사전',
   specialChars: [],

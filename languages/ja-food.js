@@ -11,6 +11,7 @@ registerLanguagePack({
   nativeName: '日本の食べ物',
   flag: '🇯🇵',
   tts: 'ja-JP',
+  parent: 'ja',        // 일본어(ja) 하위 사전 — 언어 선택 화면의 "일본어" 카드 ▾ 에서 접근
   dictionary: true,
   desc: '일본 식재료·요리·조리법·라멘 사전',
   specialChars: [],
