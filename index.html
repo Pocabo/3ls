@@ -63,6 +63,14 @@ header .spacer{flex:1}
 .menu-item .r{margin-left:auto; color:var(--sub); font-weight:600; font-size:.85rem}
 .menu-sep{height:1px; background:var(--line); margin:6px 4px}
 .menu-version{font-size:.72rem; color:var(--sub); padding:6px 10px 4px; text-align:center}
+/* 콘텐츠 중첩 드롭다운: 언어 버튼 오른쪽 ▾ 로 확장 팩 펼치기 */
+.menu-row{display:flex; align-items:center; gap:2px}
+.menu-row .menu-item{flex:1}
+.menu-caret{padding:8px 9px; border-radius:9px; color:var(--sub); font-weight:800; font-size:.85rem; line-height:1}
+.menu-caret:hover{background:var(--accent-soft); color:var(--accent)}
+.submenu{display:none; margin:2px 0 2px 16px; padding-left:6px; border-left:2px solid var(--line)}
+.submenu.open{display:block}
+.submenu .menu-item{font-size:.88rem; padding:8px 10px}
 /* ── 표 가로 스크롤 (모바일에서 UI 밖으로 안 나가게) ── */
 .table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px}
 .table-wrap .wordtable{min-width:560px}
@@ -223,10 +231,10 @@ a{color:var(--accent)}
     <button class="hbtn" id="contentsBtn" onclick="App.toggleContents(event)" aria-haspopup="true" aria-expanded="false" title="콘텐츠 · 언어 선택"><span class="hbtn-ic">📂</span><span class="hbtn-tx"> Contents</span></button>
     <div class="menu-panel" id="contentsPanel"></div>
   </div>
-  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> word</span></button>
-  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
+  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> Word</span></button>
+  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> Remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
   <div class="menu-wrap">
-    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> menu</span></button>
+    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> Menu</span></button>
     <div class="menu-panel" id="menuPanel">
       <div class="menu-label">화면</div>
       <button class="menu-item" onclick="App.cycleTheme()">🌗 테마 <span class="r" id="themeLabel">시스템</span></button>
@@ -264,7 +272,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.1.0.0';
+  const APP_VERSION = '4.1.1.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -866,16 +874,38 @@ const App = (() => {
   function renderContentsMenu(){
     const panel = $('#contentsPanel'); if(!panel) return;
     const langId = languageOf(S.activeLang);
-    const items = contentsOf(langId).map(p=>{
-      const on = p.id===S.activeLang;
-      const label = p.parent ? (p.menuLabel||p.name) : p.name;
-      return `<button class="menu-item" onclick="App.closeContents(); App.switchLang('${p.id}')">
-        ${on?'● ':'○ '}${p.flag||''} ${esc(label)}${p.dictionary?' <span class="r">사전</span>':''}</button>`;
-    }).join('');
+    const main = LANGUAGE_PACKS[langId];
+    const kids = childPacks(langId);
+    const dot = id => id===S.activeLang ? '● ' : '○ ';
+    const kidBtn = k => `<button class="menu-item" onclick="App.closeContents(); App.switchLang('${k.id}')">
+        ${dot(k.id)}${k.flag||''} ${esc(k.menuLabel||k.name)}${k.dictionary?' <span class="r">사전</span>':''}</button>`;
+    let html = '';
+    if(main){
+      const kidActive = kids.some(k=>k.id===S.activeLang);
+      // 언어 본과정 버튼 + (확장이 있으면) 오른쪽 ▾ 로 펼치는 중첩 드롭다운
+      const caret = kids.length
+        ? `<button class="menu-caret" id="caret-${langId}" onclick="App.toggleSub('${langId}',event)" title="확장 콘텐츠 펼치기/접기">${kidActive?'▴':'▾'}</button>` : '';
+      html += `<div class="menu-row">
+        <button class="menu-item" onclick="App.closeContents(); App.switchLang('${main.id}')">${dot(main.id)}${main.flag||''} ${esc(main.name)}</button>
+        ${caret}</div>`;
+      if(kids.length){
+        html += `<div class="submenu ${kidActive?'open':''}" id="sub-${langId}">${kids.map(kidBtn).join('')}</div>`;
+        // 기존(4.1.0.0) 방식: 확장 팩을 평면 목록으로도 그대로 노출
+        html += kids.map(kidBtn).join('');
+      }
+    }
     panel.innerHTML = `<div class="menu-label">언어</div>
       <button class="menu-item" onclick="App.closeContents(); App.go('picker')">🌐 언어 선택…</button>
       <div class="menu-sep"></div>
-      <div class="menu-label">이 언어의 콘텐츠</div>${items}`;
+      <div class="menu-label">이 언어의 콘텐츠</div>${html}`;
+  }
+  // ▾ 캐럿: 재렌더 없이 중첩 목록만 펼침/접기(패널은 안 닫힘)
+  function toggleSub(id, e){
+    if(e) e.stopPropagation();
+    const box = document.getElementById('sub-'+id), caret = document.getElementById('caret-'+id);
+    if(!box) return;
+    const open = box.classList.toggle('open');
+    if(caret) caret.textContent = open ? '▴' : '▾';
   }
   function switchLang(id){
     if(!LANGUAGE_PACKS[id]) return;
@@ -971,7 +1001,7 @@ const App = (() => {
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
-    cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents};
+    cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, toggleSub};
 })();
 </script>
 
