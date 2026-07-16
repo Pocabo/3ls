@@ -47,7 +47,6 @@ header{position:sticky; top:0; z-index:10; background:var(--card); border-bottom
 header .logo{font-weight:800; font-size:1.05rem; display:flex; align-items:center; gap:8px; cursor:pointer; white-space:nowrap}
 header .logo .dot{display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--accent)}
 header .spacer{flex:1}
-#langSelect{padding:6px 10px; border:1px solid var(--line); border-radius:10px; background:var(--card); max-width:170px}
 .hbtn{padding:7px 13px; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-weight:600; white-space:nowrap}
 .hbtn:hover{filter:brightness(.96)}
 .hbtn .badge{background:var(--bad); color:#fff; border-radius:99px; font-size:.72rem; padding:1px 7px; margin-left:4px}
@@ -72,7 +71,6 @@ main{max-width:900px; margin:0 auto; padding:22px 16px 80px; overflow-x:hidden}
 @media (max-width:420px){
   header{padding:9px 12px; gap:7px}
   header .logo{font-size:1rem}
-  #langSelect{max-width:100px; min-width:0}
   .hbtn{padding:8px 9px}
   .hbtn .hbtn-tx{display:none} /* 좁은 화면: 아이콘만 표시해 헤더가 안 넘치게 */
 }
@@ -221,11 +219,14 @@ a{color:var(--accent)}
 <header>
   <div class="logo" onclick="App.go('home')"><span class="dot"></span>3Ls</div>
   <div class="spacer"></div>
-  <select id="langSelect" onchange="App.switchLang(this.value)" title="학습 언어 선택"></select>
-  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> 단어은행</span></button>
-  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> 복습</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
   <div class="menu-wrap">
-    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> 메뉴</span></button>
+    <button class="hbtn" id="contentsBtn" onclick="App.toggleContents(event)" aria-haspopup="true" aria-expanded="false" title="콘텐츠 · 언어 선택"><span class="hbtn-ic">📂</span><span class="hbtn-tx"> Contents</span></button>
+    <div class="menu-panel" id="contentsPanel"></div>
+  </div>
+  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> word</span></button>
+  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
+  <div class="menu-wrap">
+    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> menu</span></button>
     <div class="menu-panel" id="menuPanel">
       <div class="menu-label">화면</div>
       <button class="menu-item" onclick="App.cycleTheme()">🌗 테마 <span class="r" id="themeLabel">시스템</span></button>
@@ -259,10 +260,11 @@ window.registerLanguagePack = function(pack){
 };
 
 const App = (() => {
-  /* 버전 규칙: MAJOR = 언어팩/콘텐츠 추가 · MINOR = UI·사용성 개선(메이저마다 0으로 리셋)
-     자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과 service-worker.js의
-     CACHE 상수를 함께 올려주세요(같은 문자열을 쓰면 캐시 버전=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.3.1';
+  /* 버전 규칙(4자리 LANG.MAJOR.MINOR.PATCH): LANG=지원 언어 수 · MAJOR=대형 기능/새 콘텐츠 축
+     (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
+     왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
+     service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
+  const APP_VERSION = '4.1.0.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -288,6 +290,16 @@ const App = (() => {
     return S.langs[id];
   }
   function pack(){ return LANGUAGE_PACKS[S.activeLang]; }
+
+  /* ── 언어 ↔ 콘텐츠 그룹 ─────────────────────────────
+     팩은 두 종류: 최상위 "언어"(parent 없음)와, 그 언어에 딸린
+     "확장/사전 콘텐츠"(parent:'<언어id>'). 언어 선택 화면엔 최상위만 뜨고,
+     확장 팩은 Contents 드롭다운에서 접근한다. 예) fr-extra.parent==='fr' */
+  function topLangs(){ return Object.values(LANGUAGE_PACKS).filter(p=>!p.parent); }
+  function childPacks(langId){ return Object.values(LANGUAGE_PACKS).filter(p=>p.parent===langId); }
+  function languageOf(id){ const p=LANGUAGE_PACKS[id]; return (p && p.parent) ? p.parent : id; }
+  function contentsOf(langId){ const main=LANGUAGE_PACKS[langId]; return main ? [main, ...childPacks(langId)] : []; }
+  function packWordCount(id){ const p=LANGUAGE_PACKS[id]; return p ? p.levels.reduce((n,L)=>n+L.words.length,0) : 0; }
 
   /* ── 유틸 ───────────────────────────────────────── */
   const $ = sel => document.querySelector(sel);
@@ -344,6 +356,7 @@ const App = (() => {
 
   function render(){
     const el = $('#app');
+    if(view.name==='picker'){ el.innerHTML = pickerView(); return; } // 언어 선택 화면은 활성 팩과 무관
     if(!pack()){ el.innerHTML = '<div class="empty">언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.</div>'; return; }
     if(view.name==='home') el.innerHTML = homeView();
     else if(view.name==='level') el.innerHTML = levelView(view.arg);
@@ -357,6 +370,25 @@ const App = (() => {
   function phaseLabel(p){
     return {intro:'기초 다지기', A:'Phase A · 블록 조립', B:'Phase B · 확장/빈칸', C:'Phase C · 자유 작문'}[p] || '';
   }
+  /* ── 언어 선택 화면 (드롭다운 대신 별도 페이지) ──── */
+  function pickerView(){
+    const cards = topLangs().map(p=>{
+      const kids = childPacks(p.id);
+      const words = packWordCount(p.id) + kids.reduce((n,k)=>n+packWordCount(k.id),0);
+      const extra = kids.length ? ` · 확장 ${kids.length}종` : '';
+      const active = languageOf(S.activeLang)===p.id;
+      return `<div class="levelcard" onclick="App.pickLang('${p.id}')" style="${active?'border-color:var(--accent)':''}">
+        <div style="font-size:1.8rem; line-height:1">${p.flag||'🌐'}</div>
+        <h3 style="margin:6px 0 2px">${esc(p.name)}${active?' <span class="pill">현재</span>':''}</h3>
+        <div class="meta">${esc(p.nativeName||'')} · 단어 ${words}개${extra}</div>
+      </div>`;
+    }).join('');
+    return `<h1>🌐 Languages</h1>
+      <p class="sub" style="margin-bottom:18px">학습할 언어를 선택하세요. 각 언어의 확장·사전 콘텐츠는 상단 <b>📂 Contents</b>에서 전환합니다.</p>
+      <div class="levelgrid">${cards}</div>`;
+  }
+  function pickLang(id){ switchLang(id); }
+
   function homeView(){
     const p = pack(), st = langState();
     const totalWords = allWords().length;
@@ -829,14 +861,25 @@ const App = (() => {
       </div></div>`;
   }
 
-  /* ── 언어 전환 & JSON 언어팩 가져오기 ───────────── */
-  function fillLangSelect(){
-    const sel = $('#langSelect');
-    sel.innerHTML = Object.values(LANGUAGE_PACKS)
-      .map(p=>`<option value="${p.id}" ${p.id===S.activeLang?'selected':''}>${p.flag||''} ${esc(p.name)}</option>`).join('');
+  /* ── 언어/콘텐츠 전환 & JSON 언어팩 가져오기 ─────── */
+  // Contents 드롭다운: 상단에 "언어 선택"(picker), 아래에 현재 언어의 콘텐츠 목록(본과정 + 확장 팩)
+  function renderContentsMenu(){
+    const panel = $('#contentsPanel'); if(!panel) return;
+    const langId = languageOf(S.activeLang);
+    const items = contentsOf(langId).map(p=>{
+      const on = p.id===S.activeLang;
+      const label = p.parent ? (p.menuLabel||p.name) : p.name;
+      return `<button class="menu-item" onclick="App.closeContents(); App.switchLang('${p.id}')">
+        ${on?'● ':'○ '}${p.flag||''} ${esc(label)}${p.dictionary?' <span class="r">사전</span>':''}</button>`;
+    }).join('');
+    panel.innerHTML = `<div class="menu-label">언어</div>
+      <button class="menu-item" onclick="App.closeContents(); App.go('picker')">🌐 언어 선택…</button>
+      <div class="menu-sep"></div>
+      <div class="menu-label">이 언어의 콘텐츠</div>${items}`;
   }
   function switchLang(id){
-    S.activeLang = id; save(); go('home'); fillLangSelect();
+    if(!LANGUAGE_PACKS[id]) return;
+    S.activeLang = id; save(); renderContentsMenu(); go('home');
   }
   function importPack(input){
     const f = input.files[0]; if(!f) return;
@@ -849,7 +892,7 @@ const App = (() => {
         const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
         customs[pk.id] = pk;
         localStorage.setItem(PACKS_KEY, JSON.stringify(customs));
-        S.activeLang = pk.id; save(); fillLangSelect(); go('home');
+        S.activeLang = pk.id; save(); renderContentsMenu(); go('home');
         alert(`언어팩 "${pk.name}" 을(를) 불러왔습니다! (이 브라우저에 저장됨)`);
       }catch(e){ alert('언어팩을 읽을 수 없습니다: '+e.message+'\nlanguages/_template.js 의 스키마를 확인하세요.'); }
     };
@@ -876,15 +919,28 @@ const App = (() => {
     localStorage.setItem(THEME_KEY, next); applyTheme(next);
   }
 
-  /* ── 헤더 메뉴 드롭다운 ─────────────────────────── */
+  /* ── 헤더 드롭다운 (⚙ 메뉴 · 📂 Contents) ───────── */
   function toggleMenu(e){
     if(e) e.stopPropagation();
+    closeContents();
     const p = document.getElementById('menuPanel'), b = document.getElementById('menuBtn');
     const open = p.classList.toggle('open');
     if(b) b.setAttribute('aria-expanded', open? 'true':'false');
   }
   function closeMenu(){
     const p = document.getElementById('menuPanel'), b = document.getElementById('menuBtn');
+    if(p) p.classList.remove('open');
+    if(b) b.setAttribute('aria-expanded','false');
+  }
+  function toggleContents(e){
+    if(e) e.stopPropagation();
+    closeMenu();
+    const p = document.getElementById('contentsPanel'), b = document.getElementById('contentsBtn');
+    const open = p.classList.toggle('open');
+    if(b) b.setAttribute('aria-expanded', open? 'true':'false');
+  }
+  function closeContents(){
+    const p = document.getElementById('contentsPanel'), b = document.getElementById('contentsBtn');
     if(p) p.classList.remove('open');
     if(b) b.setAttribute('aria-expanded','false');
   }
@@ -895,8 +951,8 @@ const App = (() => {
     if(mv) mv.textContent = '3Ls v' + APP_VERSION;
     if(fv) fv.textContent = 'v' + APP_VERSION;
     applyTheme(currentTheme());
-    // 메뉴 바깥 클릭 시 닫기
-    document.addEventListener('click', (e)=>{ if(!e.target.closest('.menu-wrap')) closeMenu(); });
+    // 드롭다운 바깥 클릭 시 둘 다 닫기
+    document.addEventListener('click', (e)=>{ if(!e.target.closest('.menu-wrap')){ closeMenu(); closeContents(); } });
     // 시스템 테마 변경 시(시스템 모드일 때만) 상태바 색 갱신
     if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', ()=>{
       if(currentTheme()==='system') applyTheme('system');
@@ -906,21 +962,22 @@ const App = (() => {
       const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
       Object.values(customs).forEach(registerLanguagePack);
     }catch(e){}
-    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]) S.activeLang = Object.keys(LANGUAGE_PACKS)[0];
-    fillLangSelect(); render();
+    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]) S.activeLang = (topLangs()[0]||{}).id || Object.keys(LANGUAGE_PACKS)[0];
+    renderContentsMenu(); render();
   }
 
-  return {init, go, tab, speak, switchLang, importPack,
+  return {init, go, tab, speak, switchLang, pickLang, importPack,
     flashFlip, flashMark, flashRestart,
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
-    cycleTheme, toggleMenu, closeMenu};
+    cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents};
 })();
 </script>
 
 <!-- ▼ 언어팩: 새 언어를 추가하려면 languages/xx.js 를 만들고 아래에 한 줄 추가하세요 -->
 <script src="languages/fr.js"></script>
+<script src="languages/fr-extra.js"></script>
 <script src="languages/es.js"></script>
 <script src="languages/ja-food.js"></script>
 <script src="languages/hanja-words.js"></script>
