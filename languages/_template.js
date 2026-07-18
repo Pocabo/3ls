@@ -13,9 +13,21 @@
      프로그램 상단의 "＋ 언어팩" 버튼으로 불러오기 (브라우저에 저장됨)
 
    ── 필드 규칙 ─────────────────────────────────────────────
-   id           : 언어 코드 (고유해야 함, 예: 'es', 'de', 'ja')
+   id           : 팩 고유 id (파일명과 맞추기, 예: 'es', 'ja', 'fr-extra')
+   target       : 학습 언어 코드 (예: 'fr','es','ja','kr'). 언어 선택 화면의 카드는 target 기준
+   extra        : true 면 같은 target의 확장 콘텐츠(사전 등) — 카드 ▾ 에서 접근, menuLabel로 표기
    tts          : Web Speech API 로케일 (예: 'es-ES', 'de-DE', 'ja-JP')
    specialChars : 화면 키보드로 제공할 특수문자 (없으면 [])
+
+   ── 단어 스키마 (언어 비종속) ─────────────────────────────
+   { w:'표제어(학습 언어)', ipa:'발음',
+     m:{ kr:'한국어 뜻', en:'English meaning' },   // 뜻은 base(설명 언어)로 키잉
+     ex:'예문(학습 언어)', exm:{ kr:'예문 번역' },    // 예문 번역도 base로 키잉
+     tip:{ kr:'보충 설명' },                        // 팁도 base로 키잉
+     gender:'m'|'f'|'mf'(선택), plural:'복수형'(선택) }
+   · base 무관 필드(w·ipa·ex·gender)는 그대로 두고, base 종속 필드(m·exm·tip)만 맵으로.
+   · 팩이 지원하는 base = 단어 m 에 값이 있는 키들로 자동 결정 (kr만 있으면 KR 모드에서만 노출).
+   · base 하나만 쓸 거면 m:{kr:'…'} 처럼 그 키만 채우면 됩니다.
    gender       : 'm' | 'f' | 'mf' | 생략 — 성(性) 구분이 없는 언어(일본어 등)는
                   전부 생략하면 UI에서 자동으로 숨겨집니다.
    phase        : 'intro'(선택형 위주) → 'A'(블록 조립) → 'B'(빈칸/변형) → 'C'(자유 작문)
@@ -39,6 +51,7 @@
 
 registerLanguagePack({
   id: 'es',
+  target: 'es',
   name: '스페인어',
   nativeName: 'Español',
   flag: '🇪🇸',
@@ -50,10 +63,10 @@ registerLanguagePack({
       title: '첫걸음 — 인사',
       desc: '스페인어 기본 인사와 발음을 익힙니다.',
       words: [
-        {w:'hola', ipa:'/ˈola/', ko:'안녕하세요', en:'hello', pos:'표현',
-         ex:'¡Hola! ¿Cómo estás?', exKo:'안녕! 어떻게 지내?'},
-        {w:'gracias', ipa:'/ˈɡɾasjas/', ko:'감사합니다', en:'thank you', pos:'표현',
-         ex:'Muchas gracias.', exKo:'정말 감사합니다.'}
+        {w:'hola', ipa:'/ˈola/', m:{kr:'안녕하세요', en:'hello'}, pos:'표현',
+         ex:'¡Hola! ¿Cómo estás?', exm:{kr:'안녕! 어떻게 지내?'}},
+        {w:'gracias', ipa:'/ˈɡɾasjas/', m:{kr:'감사합니다', en:'thank you'}, pos:'표현',
+         ex:'Muchas gracias.', exm:{kr:'정말 감사합니다.'}}
         // ... 단어 추가
       ],
       grammar: [

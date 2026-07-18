@@ -78,6 +78,10 @@ header .spacer{flex:1}
 .pick-sub.open{display:block}
 .pick-subitem{display:block; width:100%; text-align:left; padding:10px 12px; border-radius:9px; font-weight:600; color:var(--ink)}
 .pick-subitem:hover{background:var(--accent-soft); color:var(--accent)}
+/* 언어 선택 페이지 상단: 제목 + Base(설명 언어) 드롭다운 */
+.pick-title{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.base-select{padding:6px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); font-weight:700; color:var(--accent)}
+.base-tag{font-size:.72rem; font-weight:800; color:var(--sub); background:var(--accent-soft); border-radius:99px; padding:2px 9px; margin-left:6px}
 /* ── 표 가로 스크롤 (모바일에서 UI 밖으로 안 나가게) ── */
 .table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:10px}
 .table-wrap .wordtable{min-width:560px}
@@ -235,19 +239,19 @@ a{color:var(--accent)}
   <div class="logo" onclick="App.go('home')"><span class="dot"></span>3Ls</div>
   <div class="spacer"></div>
   <div class="menu-wrap">
-    <button class="hbtn" id="contentsBtn" onclick="App.toggleContents(event)" aria-haspopup="true" aria-expanded="false" title="콘텐츠 · 언어 선택"><span class="hbtn-ic">📂</span><span class="hbtn-tx"> Contents</span></button>
+    <button class="hbtn" id="contentsBtn" onclick="App.toggleContents(event)" aria-haspopup="true" aria-expanded="false" title="콘텐츠 · 언어 선택"><span class="hbtn-ic">📂</span><span class="hbtn-tx" id="txContents"> Contents</span></button>
     <div class="menu-panel" id="contentsPanel"></div>
   </div>
-  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx"> Word</span></button>
-  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx"> Remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
+  <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx" id="txWord"> Word</span></button>
+  <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx" id="txRemind"> Remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
   <div class="menu-wrap">
-    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx"> Menu</span></button>
+    <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx" id="txMenu"> Menu</span></button>
     <div class="menu-panel" id="menuPanel">
-      <div class="menu-label">화면</div>
-      <button class="menu-item" onclick="App.cycleTheme()">🌗 테마 <span class="r" id="themeLabel">시스템</span></button>
+      <div class="menu-label" id="txMScreen">화면</div>
+      <button class="menu-item" onclick="App.cycleTheme()">🌗 <span id="txMTheme">테마</span> <span class="r" id="themeLabel">시스템</span></button>
       <div class="menu-sep"></div>
-      <div class="menu-label">언어팩</div>
-      <button class="menu-item" onclick="App.closeMenu(); document.getElementById('packFile').click()">＋ 언어팩 가져오기 (JSON)</button>
+      <div class="menu-label" id="txMPacks">언어팩</div>
+      <button class="menu-item" id="txMImport" onclick="App.closeMenu(); document.getElementById('packFile').click()">＋ 언어팩 가져오기 (JSON)</button>
       <div class="menu-sep"></div>
       <div class="menu-version" id="menuVersion">3Ls v0.0</div>
     </div>
@@ -273,13 +277,25 @@ window.registerLanguagePack = function(pack){
   for(const k of need){ if(!(k in pack)) { console.error('언어팩에 "'+k+'" 필드가 없습니다', pack); return; } }
   window.LANGUAGE_PACKS[pack.id] = pack;
 };
+// 단어 스키마: { w, ipa, m:{<base>:뜻}, ex, exm:{<base>:예문번역}, tip:{<base>:설명}, gender, plural }
+//   base 무관 필드(w·ipa·ex·gender)는 그대로, base 종속 필드(m·exm·tip)만 base로 키잉.
+//   팩이 지원하는 base = 단어들의 m 에 존재하는 키로 자동 결정된다.
+// 향후 B(표제어키 오버레이) 호환용 훅: 특정 target의 단어들에 base 뜻을 나중에 주입.
+//   예) registerMeanings('fr','en',{'bonjour':'hello',…}) → 표제어(w)로 매칭해 m[base] 채움.
+//   이 훅이 있어, A(인라인)로 시작해도 나중에 별도 뜻 파일(오버레이)로 무손실 확장 가능.
+window.registerMeanings = function(target, base, map){
+  Object.values(window.LANGUAGE_PACKS).filter(p=>p.target===target).forEach(p=>
+    (p.levels||[]).forEach(L=>(L.words||[]).forEach(w=>{
+      if(map[w.w]!=null){ w.m = w.m || {}; if(w.m[base]==null) w.m[base] = map[w.w]; }
+    })));
+};
 
 const App = (() => {
   /* 버전 규칙(4자리 LANG.MAJOR.MINOR.PATCH): LANG=지원 언어 수 · MAJOR=대형 기능/새 콘텐츠 축
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '4.1.3.0';
+  const APP_VERSION = '4.2.1.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -306,23 +322,76 @@ const App = (() => {
   }
   function pack(){ return LANGUAGE_PACKS[S.activeLang]; }
 
-  /* ── 언어 ↔ 콘텐츠 그룹 ─────────────────────────────
-     팩은 두 종류: 최상위 "언어"(parent 없음)와, 그 언어에 딸린
-     "확장/사전 콘텐츠"(parent:'<언어id>'). 언어 선택 화면엔 최상위만 뜨고,
-     확장 팩은 Contents 드롭다운에서 접근한다. 예) fr-extra.parent==='fr' */
-  function topLangs(){ return Object.values(LANGUAGE_PACKS).filter(p=>!p.parent); }
-  function childPacks(langId){ return Object.values(LANGUAGE_PACKS).filter(p=>p.parent===langId); }
-  function languageOf(id){ const p=LANGUAGE_PACKS[id]; return (p && p.parent) ? p.parent : id; }
-  function packWordCount(id){ const p=LANGUAGE_PACKS[id]; return p ? p.levels.reduce((n,L)=>n+(L.words?L.words.length:0),0) : 0; }
-  // 빈 언어(본과정 없음): 아직 자체 콘텐츠가 없는 상위 언어 껍데기(예: ja·kr)
+  /* ── base(설명 언어) · target(학습 언어) 그룹 ──────
+     팩은 target만 선언(base 무관). 한 팩이 지원하는 base = 단어 m 의 키로 자동 결정.
+     언어 선택 화면은 현재 base로 뜻이 있는 target들을 카드로 보여주고,
+     한 target에 여러 팩(본과정+확장)이 있으면 카드 ▾ 로 펼친다. base=UI 언어이기도 하다. */
+  function curBase(){ return S.base || 'kr'; }
+  // 팩이 지원하는 base 집합 = 단어 m 에 값이 있는 키들 (+명시 p.bases)
+  function packBases(p){ const s=new Set((p&&p.bases)||[]);
+    (p&&p.levels||[]).forEach(L=>(L.words||[]).forEach(w=>{ if(w.m) for(const k in w.m){ if(String(w.m[k]||'').trim()) s.add(k); } }));
+    return s; }
+  function packWordCount(id, base){ const p=LANGUAGE_PACKS[id]; if(!p) return 0;
+    return p.levels.reduce((n,L)=>n+(L.words?(base? L.words.filter(w=>w.m&&String(w.m[base]||'').trim()).length : L.words.length):0),0); }
+  function basesAvailable(){ const s=new Set(); Object.values(LANGUAGE_PACKS).forEach(p=>packBases(p).forEach(b=>s.add(b)));
+    return [...s].sort((a,b)=> a==='kr'?-1 : b==='kr'?1 : a.localeCompare(b)); }
+  function packsOfTarget(t){ return Object.values(LANGUAGE_PACKS).filter(p=>p.target===t).sort((a,c)=>(a.extra?1:0)-(c.extra?1:0)); }
+  function targetSupportsBase(t,b){ return packsOfTarget(t).some(p=>packBases(p).has(b)); }
+  function targetsForBase(b){ const s=[]; Object.values(LANGUAGE_PACKS).forEach(p=>{
+    if(p.target && !s.includes(p.target) && targetSupportsBase(p.target,b)) s.push(p.target); }); return s; }
+  function mainPackOf(t){ const ps=packsOfTarget(t); return ps.find(p=>!p.extra) || ps[0]; }
+
+  const TARGETS = {
+    fr:{ko:'프랑스어', en:'French'}, es:{ko:'스페인어', en:'Spanish'},
+    ja:{ko:'일본어', en:'Japanese'}, kr:{ko:'한국어', en:'Korean'},
+  };
+  // 빈 껍데기 언어(levels:[])인지 · 그렇다면 같은 target의 1순위 확장 사전으로 넘긴다
   function isEmptyPack(p){ return !p || !p.levels || !p.levels.some(L=>L.words && L.words.length); }
-  // 콘텐츠 목록(Contents 드롭다운용): 본과정이 비어 있으면 그 언어는 빼고 확장/사전만
-  function contentsOf(langId){ const main=LANGUAGE_PACKS[langId]; const kids=childPacks(langId);
-    return (main && !isEmptyPack(main) ? [main] : []).concat(kids); }
-  // 선택된 팩이 "빈 언어"면 첫 확장 사전으로 넘긴다 (예: 일본어 클릭 → 일본 음식)
-  function resolvePack(id){ const p=LANGUAGE_PACKS[id];
-    if(p && isEmptyPack(p)){ const kids=childPacks(id); if(kids.length) return kids[0].id; }
-    return id; }
+  function resolvePack(id){
+    const p = LANGUAGE_PACKS[id];
+    if(p && isEmptyPack(p)){
+      const dicts = packsOfTarget(p.target).filter(x=>x.id!==id);
+      if(dicts.length) return dicts[0].id;
+    }
+    return id;
+  }
+  function targetName(t){ const x=TARGETS[t]; return x ? (x[curBase()]||x.ko||t) : t; }
+  const BASE_LABEL = { kr:'한국어', en:'English' };
+  // 단어 뜻/예문번역/팁을 현재 base로 골라 반환
+  function meaningOf(w){ return (w.m && w.m[curBase()]) || ''; }
+  function exmOf(w){ return (w.exm && w.exm[curBase()]) || ''; }
+  function tipOf(w){ return (w.tip && w.tip[curBase()]) || ''; }
+
+  /* ── i18n: UI 언어 = base ─────────────────────────── */
+  const I18N = {
+    ko:{ contents:'콘텐츠', word:'단어은행', remind:'복습', menu:'메뉴',
+         mScreen:'화면', mTheme:'테마', mPacks:'언어팩', mImport:'＋ 언어팩 가져오기 (JSON)',
+         thSystem:'시스템', thLight:'라이트', thDark:'다크',
+         tWords:'📖 단어', tFlash:'🃏 암기카드', tGrammar:'📐 문법', tEx:'✏️ 연습', tQuiz:'🏁 시험',
+         thCat:'분류', thWord:'단어', thIpa:'발음', thMean:'뜻', thEx:'예문', thSpeak:'듣기', colFold:'열 접기', tipCol:'💡팁',
+         cChoose:'언어 선택…', cContents:'이 언어의 콘텐츠',
+         pickHint:'설명 언어(Base)를 고르고, 배울 언어를 선택하세요. 확장 콘텐츠가 있으면 ▾ 로 펼칩니다.',
+         baseLabel:'설명 언어', now:'현재', dict:'사전', backList:'← 분류 목록으로', backMap:'← 레벨 지도로',
+         words:'단어', exercises:'연습', wbTitle:'단어은행', wbSearch:'단어·뜻·예문으로 검색...',
+         wbAll:'전체', wbShown:'개 표시 중', wbTable:'📋 표', wbCards:'🃏 카드',
+         revTitle:'🔁 누적 복습', fcMeaning:'뜻 보기', fcKnow:'😄 알아요', fcDont:'😵 몰라요',
+         fcPron:'🔊 발음', fcTap:'(카드를 누르면 뜻이 보입니다)', noResult:'검색 결과가 없습니다.',
+         revEmpty:'지금 복습할 단어가 없습니다.', revDone:'오늘의 복습 완료!', backHome:'홈으로' },
+    en:{ contents:'Contents', word:'Word', remind:'Remind', menu:'Menu',
+         mScreen:'Display', mTheme:'Theme', mPacks:'Language pack', mImport:'＋ Import pack (JSON)',
+         thSystem:'System', thLight:'Light', thDark:'Dark',
+         tWords:'📖 Words', tFlash:'🃏 Flashcards', tGrammar:'📐 Grammar', tEx:'✏️ Practice', tQuiz:'🏁 Test',
+         thCat:'Category', thWord:'Word', thIpa:'IPA', thMean:'Meaning', thEx:'Example', thSpeak:'Audio', colFold:'Columns', tipCol:'💡Tip',
+         cChoose:'Choose language…', cContents:'Contents in this language',
+         pickHint:'Pick your base language, then the language to learn. Expand ▾ for extra content.',
+         baseLabel:'Base', now:'current', dict:'dict', backList:'← Back to list', backMap:'← Back to levels',
+         words:'words', exercises:'exercises', wbTitle:'Word Bank', wbSearch:'Search word, meaning, example...',
+         wbAll:'All', wbShown:' shown', wbTable:'📋 Table', wbCards:'🃏 Cards',
+         revTitle:'🔁 Review', fcMeaning:'Show meaning', fcKnow:'😄 Know it', fcDont:'😵 Don’t know',
+         fcPron:'🔊 Pronounce', fcTap:'(tap the card to reveal the meaning)', noResult:'No results.',
+         revEmpty:'Nothing to review right now.', revDone:'Review done for today!', backHome:'Home' },
+  };
+  function T(k){ const b=curBase(); return (I18N[b]&&I18N[b][k]!=null)?I18N[b][k]:(I18N.ko[k]||k); }
 
   /* ── 유틸 ───────────────────────────────────────── */
   const $ = sel => document.querySelector(sel);
@@ -393,42 +462,57 @@ const App = (() => {
   function phaseLabel(p){
     return {intro:'기초 다지기', A:'Phase A · 블록 조립', B:'Phase B · 확장/빈칸', C:'Phase C · 자유 작문'}[p] || '';
   }
-  /* ── 언어 선택 화면 (드롭다운 대신 별도 페이지) ────
-     확장/사전 팩이 있는 언어는 카드 오른쪽 ▾ 로 펼쳐 바로 그 콘텐츠로 들어간다.
-     확장이 없는 언어(스페인어 등)는 ▾ 없이 카드 클릭만. 자체가 사전인 팩
-     (일본 음식·한자어)은 최상위 언어라 클릭하면 곧장 그 사전으로 들어간다. */
+  /* ── 언어 선택 화면 ────────────────────────────────
+     제목 옆 Base(설명 언어) 드롭다운으로 KR/EN 전환. 아래엔 그 base의 target들을
+     카드로 나열하고, 한 target에 확장 팩이 있으면 카드 ▾ 로 펼쳐 바로 들어간다. */
   function pickerView(){
-    const cards = topLangs().map(p=>{
-      const kids = childPacks(p.id);
-      const words = packWordCount(p.id) + kids.reduce((n,k)=>n+packWordCount(k.id),0);
-      const active = languageOf(S.activeLang)===p.id;
-      const caret = kids.length
-        ? `<button class="pick-caret" onclick="App.togglePick('${p.id}',event)" title="확장 콘텐츠 보기" aria-label="확장 콘텐츠 보기">▾</button>` : '';
-      const sub = kids.length
-        ? `<div class="pick-sub" id="picksub-${p.id}">${kids.map(k=>
-            `<button class="pick-subitem" onclick="App.pickLang('${k.id}')">${k.id===S.activeLang?'● ':''}${k.flag||''} ${esc(k.menuLabel||k.name)}${k.dictionary?' <span class="pill gray">사전</span>':''}</button>`
+    const b = curBase();
+    const baseOpts = basesAvailable().map(x=>`<option value="${x}" ${x===b?'selected':''}>${BASE_LABEL[x]||x}</option>`).join('');
+    const cards = targetsForBase(b).map(t=>{
+      const ps = packsOfTarget(t), main = mainPackOf(t);
+      const extras = ps.filter(p=>p!==main && packBases(p).has(b));   // 현재 base를 지원하는 확장만
+      const words = ps.reduce((n,p)=>n+packWordCount(p.id, b),0);      // 현재 base에 뜻이 있는 단어만 집계
+      const active = (LANGUAGE_PACKS[S.activeLang]||{}).target===t;
+      const caret = extras.length
+        ? `<button class="pick-caret" onclick="App.togglePick('${t}',event)" title="확장 콘텐츠 보기" aria-label="확장 콘텐츠 보기">▾</button>` : '';
+      const sub = extras.length
+        ? `<div class="pick-sub" id="picksub-${t}">${extras.map(k=>
+            `<button class="pick-subitem" onclick="App.switchLang('${k.id}')">${k.id===S.activeLang?'● ':''}${k.flag||''} ${esc(k.menuLabel||k.name)}${k.dictionary?` <span class="pill gray">${T('dict')}</span>`:''}</button>`
           ).join('')}</div>` : '';
       return `<div class="levelcard pick-card ${active?'on':''}">
-        <div class="pick-head" onclick="App.pickLang('${p.id}')">
-          <div class="pick-flag">${p.flag||'🌐'}</div>
+        <div class="pick-head" onclick="App.switchLang('${main.id}')">
+          <div class="pick-flag">${TARGETS[t]?.flag||main.flag||'🌐'}</div>
           <div class="pick-body">
-            <h3>${esc(p.name)}${active?' <span class="pill">현재</span>':''}</h3>
-            <div class="meta">${esc(p.nativeName||'')} · 단어 ${words}개${kids.length?` · 확장 ${kids.length}종`:''}</div>
+            <h3>${esc(targetName(t))}${active?` <span class="pill">${T('now')}</span>`:''}</h3>
+            <div class="meta">${esc(main.nativeName||'')} · ${words} ${T('words')}${extras.length?` · +${extras.length}`:''}</div>
           </div>
           ${caret}
         </div>${sub}
       </div>`;
     }).join('');
-    return `<h1>🌐 Languages</h1>
-      <p class="sub" style="margin-bottom:18px">학습할 언어를 선택하세요. 확장·사전 콘텐츠가 있는 언어는 <b>▾</b> 로 펼쳐 바로 들어갈 수 있습니다.</p>
+    return `<div class="pick-title"><h1>🌐 Languages</h1>
+        <span class="base-tag">${T('baseLabel')}</span>
+        <select class="base-select" onchange="App.setBase(this.value)" title="${esc(T('baseLabel'))}">${baseOpts}</select>
+      </div>
+      <p class="sub" style="margin-bottom:18px">${T('pickHint')}</p>
       <div class="levelgrid">${cards}</div>`;
   }
-  function pickLang(id){ switchLang(id); }
-  // picker 카드의 ▾: 재렌더 없이 그 언어의 확장 목록만 펼침/접기 (카드 클릭 전파 차단)
+  // picker 카드의 ▾: 재렌더 없이 그 target의 확장 목록만 펼침/접기 (카드 클릭 전파 차단)
   function togglePick(id, e){
     if(e) e.stopPropagation();
     const box = document.getElementById('picksub-'+id);
     if(box) box.classList.toggle('open');
+  }
+  // Base(설명 언어) 전환: UI 언어도 바뀜. 현재 팩이 새 base를 지원하면 유지, 아니면 첫 target으로.
+  function setBase(b){
+    if(!targetsForBase(b).length) return;
+    S.base = b;
+    const p = LANGUAGE_PACKS[S.activeLang];
+    if(!p || !packBases(p).has(b)){
+      const ts = targetsForBase(b);
+      if(ts.length) S.activeLang = resolvePack(mainPackOf(ts[0]).id);
+    }
+    save(); applyI18n(); renderContentsMenu(); render();
   }
 
   function homeView(){
@@ -436,31 +520,32 @@ const App = (() => {
     const totalWords = allWords().length;
     const dict = !!p.dictionary; // 사전 전용 팩: 잠금·시험 없음
     const learned = Object.values(st.srs).filter(v=>v.box>=2).length;
+    const enBase = curBase()==='en';
     let cards = p.levels.map(L=>{
-      const locked = !dict && L.level > st.unlocked;
+      // Library: 레벨 잠금 없음 — 모든 레벨 자유 열람
       const best = st.quizBest[L.level];
       const doneMap = st.doneEx['L'+L.level]||{};
       const exDone = Object.keys(doneMap).length;
       const exTotal = (L.exercises||[]).length;
       const pct = exTotal? Math.round(exDone/exTotal*100) : 0;
       if(dict) return `<div class="levelcard" onclick="App.go('level',${L.level})">
-        <span class="phase-tag">${L.words.length} 단어</span>
+        <span class="phase-tag">${L.words.length} ${T('words')}</span>
         <h3 style="margin-top:2px">${esc(L.title)}</h3>
-        <div class="meta">${esc(L.sub||'눌러서 단어 보기')}</div>
+        <div class="meta">${esc(L.sub || (enBase?'Tap to view words':'눌러서 단어 보기'))}</div>
       </div>`;
-      return `<div class="levelcard ${locked?'locked':''}" ${locked?'':`onclick="App.go('level',${L.level})"`}>
-        ${locked? '<span class="lockicon">🔒</span>' : `<span class="phase-tag">${esc(phaseLabel(L.phase))}</span>`}
+      return `<div class="levelcard" onclick="App.go('level',${L.level})">
+        <span class="phase-tag">${esc(phaseLabel(L.phase))}</span>
         <div class="lv">LEVEL ${L.level} · ${esc(L.cefr)}</div>
         <h3>${esc(L.title)}</h3>
-        <div class="meta">단어 ${L.words.length}개 · 연습 ${exTotal}문항${best!=null? ` · 시험 최고 <b>${best}%</b>`:''}</div>
+        <div class="meta">${T('words')} ${L.words.length} · ${T('exercises')} ${exTotal}${best!=null? ` · ${enBase?'best':'시험 최고'} <b>${best}%</b>`:''}</div>
         <div class="progressbar"><div style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
     const sub = dict
-      ? `${esc(p.desc||'사전 · 단어장')} · 총 <b>${totalWords}</b>개 단어 · 분류를 눌러 단어를 살펴보세요.`
-      : `CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 ·
-         각 레벨의 <b>마일스톤 시험 ${PASS_SCORE}점 이상</b>이면 다음 레벨이 열립니다.`;
-    return `<h1>${p.flag||''} ${esc(p.name)} <span class="pill">${esc(p.nativeName||'')}</span></h1>
+      ? `${esc(p.desc||'')} · <b>${totalWords}</b> ${T('words')} · ${enBase?'Tap a category to browse.':'분류를 눌러 단어를 살펴보세요.'}`
+      : `CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 · 모든 레벨 자유 열람(Library) · 시험은 선택 연습입니다.`;
+    const title = enBase ? targetName(p.target) : (p.name || targetName(p.target));
+    return `<h1>${p.flag||''} ${esc(title)} <span class="pill">${esc(p.nativeName||'')}</span></h1>
       <p class="sub" style="margin-bottom:18px">${sub}</p>
       <div class="levelgrid">${cards}</div>`;
   }
@@ -473,8 +558,8 @@ const App = (() => {
     let tab = view.tab || 'words';
     // 사전 팩은 '단어' 탭만 제공 (시험·연습·암기카드 없음)
     const tabDefs = dict
-      ? [['words','📖 단어']]
-      : [['words','📖 단어'],['flash','🃏 암기카드'],['grammar','📐 문법'],['ex','✏️ 연습'],['quiz','🏁 시험']];
+      ? [['words',T('tWords')]]
+      : [['words',T('tWords')],['flash',T('tFlash')],['grammar',T('tGrammar')],['ex',T('tEx')],['quiz',T('tQuiz')]];
     if(!tabDefs.some(([k])=>k===tab)) tab='words';
     const tabs = tabDefs
       .map(([k,label])=>`<button class="${tab===k?'on':''}" onclick="App.tab('${k}')">${label}</button>`).join('');
@@ -487,7 +572,7 @@ const App = (() => {
     const cefrPill = L.cefr? ` <span class="pill">${esc(L.cefr)}</span>`:'';
     const phasePill = (!dict && phaseLabel(L.phase))? ` <span class="pill gray">${esc(phaseLabel(L.phase))}</span>`:'';
     const head = dict? `${esc(L.title)}` : `Level ${L.level} — ${esc(L.title)}`;
-    return `<span class="backlink" onclick="App.go('home')">← ${dict?'분류 목록으로':'레벨 지도로'}</span>
+    return `<span class="backlink" onclick="App.go('home')">${dict?T('backList'):T('backMap')}</span>
       <h1>${head}${cefrPill}${phasePill}</h1>
       ${L.desc? `<p class="sub" style="margin-bottom:14px">${esc(L.desc)}</p>`:''}
       <div class="tabs">${tabs}</div>${body}`;
@@ -501,24 +586,26 @@ const App = (() => {
 
   function wordColumns(words, opts={}){
     const cols = [];
+    const enBase = curBase()==='en';
     // key: 접기 저장용 식별자 · collapsible: 사용자가 숨길 수 있는 열인지 (단어는 항상 표시)
-    if(opts.cat) cols.push({ key:'cat', th:'분류', collapsible:true, thCls:'col-cat', tdCls:'w-ipa col-cat',
+    if(opts.cat) cols.push({ key:'cat', th:T('thCat'), collapsible:true, thCls:'col-cat', tdCls:'w-ipa col-cat',
       td: w => esc(w.catTitle||'') });
 
-    cols.push({ key:'word', th:'단어', collapsible:false, thCls:'col-word', tdCls:'w-word col-word',
-      td: w => `${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}` });
+    cols.push({ key:'word', th:T('thWord'), collapsible:false, thCls:'col-word', tdCls:'w-word col-word',
+      td: w => `${esc(w.w)}${genderTag(w.gender)}${w.plural?`<div class="w-ipa">${enBase?'pl.':'복수:'} ${esc(w.plural)}</div>`:''}` });
 
-    if(someFilled(words, w=>w.ipa)) cols.push({ key:'ipa', th:'발음', collapsible:true, thCls:'col-ipa', tdCls:'w-ipa col-ipa',
+    if(someFilled(words, w=>w.ipa)) cols.push({ key:'ipa', th:T('thIpa'), collapsible:true, thCls:'col-ipa', tdCls:'w-ipa col-ipa',
       td: w => esc(w.ipa||'') });
 
-    if(someFilled(words, w=>w.ko) || someFilled(words, w=>w.en) || someFilled(words, w=>w.tip))
-      cols.push({ key:'meaning', th:'뜻', collapsible:true, thCls:'', tdCls:'',
-        td: w => `${esc(w.ko||'')}${w.en?`<div class="w-ipa">${esc(w.en)}</div>`:''}${(w.tip && !colHidden.has('tip'))?`<div class="hint">💡 ${esc(w.tip)}</div>`:''}` });
+    // 뜻: 현재 base의 뜻만 표시. 반대편 base 뜻은 감춘다.
+    if(someFilled(words, w=>meaningOf(w)) || someFilled(words, w=>tipOf(w)))
+      cols.push({ key:'meaning', th:T('thMean'), collapsible:true, thCls:'', tdCls:'',
+        td: w => `${esc(meaningOf(w))}${(tipOf(w) && !colHidden.has('tip'))?`<div class="hint">💡 ${esc(tipOf(w))}</div>`:''}` });
 
-    if(someFilled(words, w=>w.ex)) cols.push({ key:'ex', th:'예문', collapsible:true, thCls:'', tdCls:'',
-      td: w => w.ex ? `${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}` : '' });
+    if(someFilled(words, w=>w.ex)) cols.push({ key:'ex', th:T('thEx'), collapsible:true, thCls:'', tdCls:'',
+      td: w => w.ex ? `${esc(w.ex)}${exmOf(w)?`<div class="w-ipa">${esc(exmOf(w))}</div>`:''}` : '' });
 
-    cols.push({ key:'speak', th:'듣기', collapsible:true, thCls:'col-speak', tdCls:'col-speak',
+    cols.push({ key:'speak', th:T('thSpeak'), collapsible:true, thCls:'col-speak', tdCls:'col-speak',
       td: w => `<button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>`
         + (w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:'') });
     return cols;
@@ -528,9 +615,9 @@ const App = (() => {
     const allCols = wordColumns(words, opts);
     // 접기 대상: 숨길 수 있는(collapsible) 열 + 팁(뜻 열 안의 💡 줄만 별도로 숨김)
     const toggles = allCols.filter(c => c.collapsible).map(c => ({key:c.key, label:c.th}));
-    if(someFilled(words, w=>w.tip)) toggles.push({key:'tip', label:'💡팁'});
+    if(someFilled(words, w=>tipOf(w))) toggles.push({key:'tip', label:T('tipCol')});
     // on = 표시 중, 클릭 시 토글
-    const bar = toggles.length > 1 ? `<div class="col-toggle"><span class="col-toggle-label">열 접기</span>${
+    const bar = toggles.length > 1 ? `<div class="col-toggle"><span class="col-toggle-label">${T('colFold')}</span>${
       toggles.map(t => `<button class="wb-chip ${colHidden.has(t.key)?'':'on'}" onclick="App.toggleCol('${t.key}')">${t.label}</button>`).join('')
     }</div>` : '';
     // 실제로 그릴 열 = collapsible이면서 숨김 처리된 것 제외
@@ -559,19 +646,20 @@ const App = (() => {
       (cat==='all' || String(L.level)===String(cat)) ? L.words.map(w=>({...w, catTitle:L.title})) : []
     );
     const q = norm(wbState.q).trim();
-    if(q) words = words.filter(w =>
-      norm(w.w).includes(q) || norm(w.ko).includes(q) || norm(w.en||'').includes(q) ||
-      norm(w.ex||'').includes(q) || norm(w.ipa||'').includes(q));
+    if(q) words = words.filter(w => {
+      const hay = [w.w, w.ipa, w.ex].concat(w.m?Object.values(w.m):[]).concat(w.exm?Object.values(w.exm):[]);
+      return hay.some(x => norm(x||'').includes(q));
+    });
     return words;
   }
   function wbTableHtml(){
     const words = wbFilteredWords();
-    if(!words.length) return `<div class="empty" style="padding:26px 0">검색 결과가 없습니다.</div>`;
+    if(!words.length) return `<div class="empty" style="padding:26px 0">${T('noResult')}</div>`;
     return wordTableHtml(words, {cat:true});
   }
   function wbCardsHtml(){
     const words = wbFilteredWords();
-    if(!words.length) return `<div class="empty" style="padding:26px 0">검색 결과가 없습니다.</div>`;
+    if(!words.length) return `<div class="empty" style="padding:26px 0">${T('noResult')}</div>`;
     // 카드: 원어만 보이고, 누르면 발음·뜻·예문이 아래에 펼쳐짐
     return `<div class="wb-cards">` + words.map(w=>`
       <div class="wb-card" onclick="this.classList.toggle('open')">
@@ -581,12 +669,11 @@ const App = (() => {
         </div>
         <div class="wb-card-back">
           ${w.ipa? `<div class="w-ipa">${esc(w.ipa)}</div>`:''}
-          ${w.ko? `<div class="wb-card-ko">${esc(w.ko)}</div>`:''}
-          ${w.en? `<div class="w-ipa">${esc(w.en)}</div>`:''}
-          ${w.plural? `<div class="w-ipa">복수: ${esc(w.plural)}</div>`:''}
-          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}${w.exKo?`<div class="w-ipa">${esc(w.exKo)}</div>`:''}
+          ${meaningOf(w)? `<div class="wb-card-ko">${esc(meaningOf(w))}</div>`:''}
+          ${w.plural? `<div class="w-ipa">${curBase()==='en'?'pl.':'복수:'} ${esc(w.plural)}</div>`:''}
+          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}${exmOf(w)?`<div class="w-ipa">${esc(exmOf(w))}</div>`:''}
             <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button></div>`:''}
-          ${w.tip? `<div class="hint">💡 ${esc(w.tip)}</div>`:''}
+          ${tipOf(w)? `<div class="hint">💡 ${esc(tipOf(w))}</div>`:''}
         </div>
       </div>`).join('') + `</div>`;
   }
@@ -595,20 +682,21 @@ const App = (() => {
     const p = pack();
     if(!wbState) wbState = {q:'', cat:'all', mode: localStorage.getItem('3ls.wbMode')||'table'};
     const total = allWords().length;
-    const chips = [{id:'all', label:'전체'}, ...p.levels.map(L=>({id:L.level, label:L.title}))]
+    const wbTitle = curBase()==='en' ? targetName(p.target) : (p.name || targetName(p.target));
+    const chips = [{id:'all', label:T('wbAll')}, ...p.levels.map(L=>({id:L.level, label:L.title}))]
       .map(c=>`<button class="wb-chip ${String(wbState.cat)===String(c.id)?'on':''}" onclick="App.wbSetCat('${c.id}')">${esc(c.label)}</button>`)
       .join('');
     const m = wbState.mode;
-    return `<h1>📚 ${esc(p.name)} 단어은행</h1>
-      <p class="sub" style="margin-bottom:16px">${esc(p.nativeName||'')} 전체 <b>${total}</b>개 단어 · 레벨/분류를 넘나들며 검색할 수 있습니다.</p>
+    return `<h1>📚 ${esc(wbTitle)} ${T('wbTitle')}</h1>
+      <p class="sub" style="margin-bottom:16px">${esc(p.nativeName||'')} · <b>${total}</b> ${T('words')}</p>
       <div class="card">
-        <input type="search" id="wbSearch" class="wb-search" placeholder="단어·뜻·예문으로 검색..." value="${esc(wbState.q)}" oninput="App.wbSetQuery(this.value)">
+        <input type="search" id="wbSearch" class="wb-search" placeholder="${esc(T('wbSearch'))}" value="${esc(wbState.q)}" oninput="App.wbSetQuery(this.value)">
         <div class="wb-chips">${chips}</div>
         <div class="wb-bar">
-          <span class="wb-count" id="wbCount">${wbFilteredWords().length}개 표시 중</span>
+          <span class="wb-count" id="wbCount">${wbFilteredWords().length}${T('wbShown')}</span>
           <div class="wb-mode">
-            <button class="wb-chip ${m==='table'?'on':''}" onclick="App.wbSetMode('table')">📋 표</button>
-            <button class="wb-chip ${m==='cards'?'on':''}" onclick="App.wbSetMode('cards')">🃏 카드</button>
+            <button class="wb-chip ${m==='table'?'on':''}" onclick="App.wbSetMode('table')">${T('wbTable')}</button>
+            <button class="wb-chip ${m==='cards'?'on':''}" onclick="App.wbSetMode('cards')">${T('wbCards')}</button>
           </div>
         </div>
         <div id="wbResults">${wbResultsHtml()}</div>
@@ -618,7 +706,7 @@ const App = (() => {
     wbState.q = v;
     const res = $('#wbResults'), cnt = $('#wbCount');
     if(res) res.innerHTML = wbResultsHtml();
-    if(cnt) cnt.textContent = wbFilteredWords().length + '개 표시 중';
+    if(cnt) cnt.textContent = wbFilteredWords().length + T('wbShown');
   }
   function wbSetCat(id){ wbState.cat = id; render(); }
   function wbSetMode(m){ wbState.mode = m; localStorage.setItem('3ls.wbMode', m); render(); }
@@ -635,18 +723,18 @@ const App = (() => {
         <div class="flashbtns"><button class="btn primary" onclick="App.flashRestart()">한 번 더</button></div></div>`;
     const w = flash.cards[flash.i];
     const front = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')} ${genderTag(w.gender)}</div>
-      <div class="ex sub">(카드를 누르면 뜻이 보입니다)</div>`;
+      <div class="ex sub">${T('fcTap')}</div>`;
     const back = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')}</div>
-      <div class="meaning">${esc(w.ko)}</div>
-      ${w.ex? `<div class="ex">${esc(w.ex)}<br>${esc(w.exKo||'')}</div>`:''}`;
+      <div class="meaning">${esc(meaningOf(w))}</div>
+      ${w.ex? `<div class="ex">${esc(w.ex)}${exmOf(w)?`<br>${esc(exmOf(w))}`:''}</div>`:''}`;
     return `<div class="flashwrap">
       <p class="sub">${flash.i+1} / ${flash.cards.length}</p>
       <div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
       <div class="flashbtns">
-        <button class="btn" onclick="App.speak('${jattr(w.w)}')">🔊 발음</button>
-        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">😵 몰라요</button>
-        <button class="btn good" onclick="App.flashMark(true)">😄 알아요</button>`
-        : `<button class="btn primary" onclick="App.flashFlip()">뜻 보기</button>`}
+        <button class="btn" onclick="App.speak('${jattr(w.w)}')">${T('fcPron')}</button>
+        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">${T('fcDont')}</button>
+        <button class="btn good" onclick="App.flashMark(true)">${T('fcKnow')}</button>`
+        : `<button class="btn primary" onclick="App.flashFlip()">${T('fcMeaning')}</button>`}
       </div></div>`;
   }
   function flashFlip(){ if(flash){ flash.open=!flash.open; if(flash.open) speak(flash.cards[flash.i].w); render(); } }
@@ -880,51 +968,51 @@ const App = (() => {
   function reviewView(){
     const due = dueWords();
     if(!flash){
-      if(!due.length) return `<h1>🔁 누적 복습</h1><div class="card empty">지금 복습할 단어가 없습니다.<br>
-        플래시카드에서 "몰라요"를 누르거나, 시간이 지나 복습 주기가 돌아오면 여기에 쌓입니다.</div>`;
+      if(!due.length) return `<h1>${T('revTitle')}</h1><div class="card empty">${T('revEmpty')}</div>`;
       flash = {cards: shuffle(due), i:0, open:false};
     }
     if(flash.i>=flash.cards.length)
-      return `<h1>🔁 누적 복습</h1><div class="card flashwrap"><div class="scorebig">✅</div>
-        <p class="resultmsg">오늘의 복습 완료!</p><div class="flashbtns"><button class="btn primary" onclick="App.go('home')">레벨 지도로</button></div></div>`;
+      return `<h1>${T('revTitle')}</h1><div class="card flashwrap"><div class="scorebig">✅</div>
+        <p class="resultmsg">${T('revDone')}</p><div class="flashbtns"><button class="btn primary" onclick="App.go('home')">${T('backHome')}</button></div></div>`;
     const w = flash.cards[flash.i];
     const front = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')} ${genderTag(w.gender)}</div>
-      <div class="ex sub">Level ${w.level} 단어 · 카드를 누르면 뜻이 보입니다</div>`;
-    const back = `<div class="big">${esc(w.w)}</div><div class="meaning">${esc(w.ko)}</div>
-      ${w.ex? `<div class="ex">${esc(w.ex)}<br>${esc(w.exKo||'')}</div>`:''}`;
-    return `<h1>🔁 누적 복습 <span class="pill">${flash.cards.length - flash.i}개 남음</span></h1>
-      <p class="sub">이전 레벨에서 배운 단어가 잊히지 않도록 간격 반복(SRS)으로 다시 나옵니다.</p>
+      <div class="ex sub">${T('fcTap')}</div>`;
+    const back = `<div class="big">${esc(w.w)}</div><div class="meaning">${esc(meaningOf(w))}</div>
+      ${w.ex? `<div class="ex">${esc(w.ex)}${exmOf(w)?`<br>${esc(exmOf(w))}`:''}</div>`:''}`;
+    return `<h1>${T('revTitle')} <span class="pill">${flash.cards.length - flash.i}</span></h1>
       <div class="flashwrap"><div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
       <div class="flashbtns">
-        <button class="btn" onclick="App.speak('${jattr(w.w)}')">🔊 발음</button>
-        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">😵 몰라요</button>
-        <button class="btn good" onclick="App.flashMark(true)">😄 알아요</button>`
-        : `<button class="btn primary" onclick="App.flashFlip()">뜻 보기</button>`}
+        <button class="btn" onclick="App.speak('${jattr(w.w)}')">${T('fcPron')}</button>
+        ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">${T('fcDont')}</button>
+        <button class="btn good" onclick="App.flashMark(true)">${T('fcKnow')}</button>`
+        : `<button class="btn primary" onclick="App.flashFlip()">${T('fcMeaning')}</button>`}
       </div></div>`;
   }
 
   /* ── 언어/콘텐츠 전환 & JSON 언어팩 가져오기 ─────── */
-  // Contents 드롭다운: 상단에 "언어 선택"(picker), 아래에 현재 언어의 콘텐츠 목록(본과정 + 확장 팩)
-  // Contents 드롭다운(평면): 현재 언어의 콘텐츠(본과정 + 확장/사전 팩)를 나란히 나열.
-  // 확장 팩을 언어별로 펼쳐 고르는 UI는 "언어 선택…" 페이지(picker) 쪽에 있다.
+  // Contents 드롭다운(평면): 현재 (base,target)의 콘텐츠(본과정 + 확장 팩)를 나열.
+  // 상단 "언어 선택…"으로 언어 선택 페이지(base·target)로 진입.
   function renderContentsMenu(){
     const panel = $('#contentsPanel'); if(!panel) return;
-    const langId = languageOf(S.activeLang);
-    const items = contentsOf(langId).map(p=>{
+    const cur = LANGUAGE_PACKS[S.activeLang]; if(!cur){ panel.innerHTML=''; return; }
+    const items = packsOfTarget(cur.target).filter(p=>!isEmptyPack(p) && packBases(p).has(curBase())).map(p=>{
       const on = p.id===S.activeLang;
-      const label = p.parent ? (p.menuLabel||p.name) : p.name;
+      const label = p.extra ? (p.menuLabel||p.name) : targetName(p.target);
       return `<button class="menu-item" onclick="App.closeContents(); App.switchLang('${p.id}')">
-        ${on?'● ':'○ '}${p.flag||''} ${esc(label)}${p.dictionary?' <span class="r">사전</span>':''}</button>`;
+        ${on?'● ':'○ '}${p.flag||''} ${esc(label)}${(p.dictionary && p.extra)?` <span class="r">${T('dict')}</span>`:''}</button>`;
     }).join('');
-    panel.innerHTML = `<div class="menu-label">언어</div>
-      <button class="menu-item" onclick="App.closeContents(); App.go('picker')">🌐 언어 선택…</button>
+    panel.innerHTML = `<button class="menu-item" onclick="App.closeContents(); App.go('picker')">🌐 ${T('cChoose')}</button>
       <div class="menu-sep"></div>
-      <div class="menu-label">이 언어의 콘텐츠</div>${items}`;
+      <div class="menu-label">${T('cContents')}</div>${items}`;
   }
   function switchLang(id){
     if(!LANGUAGE_PACKS[id]) return;
-    id = resolvePack(id);           // 빈 상위 언어면 첫 확장 사전으로 redirect
-    S.activeLang = id; save(); renderContentsMenu(); go('home');
+    id = resolvePack(id);              // 빈 껍데기 언어면 1순위 확장 사전으로 redirect
+    const p = LANGUAGE_PACKS[id];
+    // 현재 base가 이 팩에 없으면, 팩이 지원하는 base로 전환(kr 우선)
+    if(!packBases(p).has(curBase())){ const bs=[...packBases(p)]; if(bs.length) S.base = bs.includes('kr')?'kr':bs[0]; }
+    S.activeLang = id;
+    save(); applyI18n(); renderContentsMenu(); go('home');
   }
   function importPack(input){
     const f = input.files[0]; if(!f) return;
@@ -937,7 +1025,9 @@ const App = (() => {
         const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
         customs[pk.id] = pk;
         localStorage.setItem(PACKS_KEY, JSON.stringify(customs));
-        S.activeLang = pk.id; save(); renderContentsMenu(); go('home');
+        S.activeLang = resolvePack(pk.id);
+        const bs=[...packBases(LANGUAGE_PACKS[S.activeLang])]; if(bs.length && !bs.includes(curBase())) S.base = bs.includes('kr')?'kr':bs[0];
+        save(); applyI18n(); renderContentsMenu(); go('home');
         alert(`언어팩 "${pk.name}" 을(를) 불러왔습니다! (이 브라우저에 저장됨)`);
       }catch(e){ alert('언어팩을 읽을 수 없습니다: '+e.message+'\nlanguages/_template.js 의 스키마를 확인하세요.'); }
     };
@@ -952,7 +1042,7 @@ const App = (() => {
     if(mode==='light'||mode==='dark') root.setAttribute('data-theme', mode);
     else root.removeAttribute('data-theme'); // system = 브라우저 설정 따름
     const el = document.getElementById('themeLabel');
-    if(el) el.textContent = {system:'시스템', light:'라이트', dark:'다크'}[mode] || '시스템';
+    if(el) el.textContent = {system:T('thSystem'), light:T('thLight'), dark:T('thDark')}[mode] || T('thSystem');
     const isDark = mode==='dark' ||
       (mode==='system' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
     const mc = document.querySelector('meta[name="theme-color"]');
@@ -990,6 +1080,16 @@ const App = (() => {
     if(b) b.setAttribute('aria-expanded','false');
   }
 
+  /* ── i18n 적용: 정적 UI 요소(헤더 버튼·메뉴)를 현재 base 언어로 ── */
+  function setTx(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; }
+  function applyI18n(){
+    setTx('txContents', ' '+T('contents')); setTx('txWord', ' '+T('word'));
+    setTx('txRemind', ' '+T('remind')); setTx('txMenu', ' '+T('menu'));
+    setTx('txMScreen', T('mScreen')); setTx('txMTheme', T('mTheme'));
+    setTx('txMPacks', T('mPacks')); setTx('txMImport', T('mImport'));
+    applyTheme(currentTheme()); // 테마 라벨(시스템/라이트/다크)도 언어에 맞춰 갱신
+  }
+
   /* ── 초기화 ─────────────────────────────────────── */
   function init(){
     const mv = $('#menuVersion'), fv = $('#footerVersion');
@@ -1007,12 +1107,20 @@ const App = (() => {
       const customs = JSON.parse(localStorage.getItem(PACKS_KEY)||'{}');
       Object.values(customs).forEach(registerLanguagePack);
     }catch(e){}
-    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]) S.activeLang = (topLangs()[0]||{}).id || Object.keys(LANGUAGE_PACKS)[0];
-    S.activeLang = resolvePack(S.activeLang); // 저장된 값이 빈 언어면 하위 사전으로
-    renderContentsMenu(); render();
+    // 활성 팩·base 정합성 맞추기 (저장값이 옛 id면 첫 팩으로)
+    if(!S.base || !basesAvailable().includes(S.base)) S.base = basesAvailable()[0] || 'kr';
+    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]){
+      const t = targetsForBase(curBase())[0];
+      S.activeLang = t ? mainPackOf(t).id : Object.keys(LANGUAGE_PACKS)[0];
+    }
+    S.activeLang = resolvePack(S.activeLang);  // 저장값이 빈 껍데기면 확장 사전으로
+    // 활성 팩이 현재 base를 지원하지 않으면 지원하는 base로(kr 우선)
+    const ap = LANGUAGE_PACKS[S.activeLang];
+    if(ap && !packBases(ap).has(curBase())){ const bs=[...packBases(ap)]; if(bs.length) S.base = bs.includes('kr')?'kr':bs[0]; }
+    applyI18n(); renderContentsMenu(); render();
   }
 
-  return {init, go, tab, speak, switchLang, pickLang, importPack,
+  return {init, go, tab, speak, switchLang, setBase, importPack,
     flashFlip, flashMark, flashRestart,
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
@@ -1021,14 +1129,14 @@ const App = (() => {
 })();
 </script>
 
-<!-- ▼ 언어팩: 새 언어를 추가하려면 languages/xx.js 를 만들고 아래에 한 줄 추가하세요 -->
+<!-- ▼ 언어팩: 파일명은 target 기준. 단어 뜻은 m:{<base>:…}로 여러 base를 한 파일에 담는다. -->
 <script src="languages/fr.js"></script>
 <script src="languages/fr-extra.js"></script>
 <script src="languages/es.js"></script>
 <script src="languages/ja.js"></script>
 <script src="languages/ja-food.js"></script>
 <script src="languages/kr.js"></script>
-<script src="languages/hanja-words.js"></script>
+<script src="languages/kr-hanja.js"></script>
 
 <script>window.addEventListener('DOMContentLoaded', () => App.init());</script>
 

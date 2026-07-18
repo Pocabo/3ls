@@ -19,6 +19,32 @@
 - `manifest.json`의 `version` 은 브라우저가 읽지 않는 참고용 표기입니다.
 
 ---
+## v4.2.1.0 — 2026-07-18
+**MINOR · 언어 비종속 단어 스키마(m:{base}) + target당 1파일 통합** ⚠️ 팩 규격 변경
+- 단어 뜻을 base로 키잉: `ko`/`en` → **`m:{kr,en}`**, `exKo` → `exm:{kr}`, `tip` → `tip:{kr}`. `w`·`ipa`·`ex`·`gender` 등 base 무관 필드는 그대로. base 추가 = 각 단어 `m`에 키 하나 추가
+- 팩은 이제 **target만 선언**(base 필드 폐지). 팩이 지원하는 base는 단어 `m`의 키로 자동 결정. 파일명도 target 기준으로 통합: `kr-fr`+`en-fr`→**`fr.js`**, `kr-es`+`en-es`→`es.js` 등. 파생 파일(en-*.js) 폐지 → 데이터 중복·불일치 없음
+- 엔진이 base로 뜻을 골라 렌더(`meaningOf`/`exmOf`/`tipOf`). KR 모드는 한국어 뜻만, EN 모드는 영어 뜻만 표시(반대편 감춤)
+- 언어 선택 화면은 **현재 base로 뜻이 있는 target만** 노출(예: 한자어는 kr 전용이라 EN에선 숨김. 일본 음식은 영어 뜻이 있어 EN에도 노출)
+- 향후 확장 대비 `registerMeanings(target, base, map)` 훅 추가 — A(인라인)로 시작해도 나중에 표제어키 오버레이 파일로 무손실 전환 가능
+
+## v4.2.0.1 — 2026-07-16
+**PATCH · 일본어·한국어 사전을 빈 껍데기+확장 구조로 복원**
+- v4.2.0.0에서 사라졌던 **빈 언어 껍데기 + 확장 사전 + ▾ 드롭다운 + redirect** 구조 복원(v4.1.3.0 동작)
+- `kr-ja.js`·`kr-kr.js`는 `levels:[]` 빈 껍데기(일본어·한국어), 사전은 `kr-ja-food.js`(일본 음식)·`kr-kr-hanja.js`(한자어)로 분리하고 `extra:true` 로 하위 확장 처리
+- 언어 선택 카드의 **▾** 로 확장 사전을 펼치거나, 빈 껍데기 카드를 누르면 **1순위 확장 사전으로 자동 redirect**(`resolvePack`). Contents 드롭다운은 빈 껍데기를 건너뛰고 사전만 표시
+- 한국어 target 코드를 `ko`→`kr`로 통일(`kr-kr`)
+
+## v4.2.0.0 — 2026-07-16
+**MAJOR · Base→Target 언어 체계 도입 (EN→FR/ES) + Library화** ⚠️ 팩 규격 변경
+- **base(설명 언어) · target(학습 언어) 2축 도입**. 팩 id = `{base}-{target}` (예: `kr-fr`, `en-fr`). 언어 선택 화면 상단 **"Languages" 옆 Base 드롭다운**(한국어/English)으로 전환
+- **파일 재편**: `fr→kr-fr`, `fr-extra→kr-fr-extra`, `es→kr-es`, `ja-food→kr-ja`, `hanja-words→kr-ko`. 지난 빈 껍데기 `ja.js`/`kr.js` 삭제
+- **EN→FR / EN→ES 신설**: `en-fr.js`/`en-es.js`가 kr 팩에서 **자동 파생**(`registerDerivedPack`) — 각 단어의 `en` 뜻만 쓰는 **어휘 열람 전용**. 문법·연습·시험 데이터는 없음
+- **뜻 표시가 base를 따름**: KR 모드는 한국어 뜻만, EN 모드는 영어 뜻만 (KR→FR에서 영어 안 보임)
+- **UI 언어 = base**: base=English면 탭·메뉴(Words/Flashcards/Grammar/Practice/Test, Display/Theme…)와 헤더가 영어로. `I18N` 문자열 테이블 추가
+- **Library화(잠금만 해제)**: 모든 레벨 잠금 해제 → 자유 열람. 시험·암기카드·문법·연습 탭은 유지(시험은 선택 연습)
+- 버전 규칙상 **새 번역 방향 = MAJOR 자리** → 4.1.3.0 → **4.2.0.0** (LANG=학습 언어 4 유지)
+- `⚠️ 팩 규격`: 팩에 `base`·`target` 필드 추가(미지정 시 base='kr'), 확장 팩은 `extra:true`, 파생은 `registerDerivedPack(원본id, {id,…})`
+
 ## v4.1.3.0 — 2026-07-16
 **MINOR · 일본어·한국어를 상위 언어로 승격 + 빈 언어 redirect** ⚠️ 팩 규격 변경
 - **일본어(ja)·한국어(kr) 상위 언어 팩 신설**(`levels:[]` 빈 껍데기). 기존 `일본 음식`→`parent:'ja'`, `한자어`→`parent:'kr'` 로 하위 사전화
