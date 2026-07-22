@@ -8,7 +8,7 @@
    (예: '3ls-v3.1' → '3ls-v3.2') 옛 캐시가 정리됩니다. 버전 규칙은 CHANGELOG.md 참고.
    경로는 모두 상대경로 → GitHub Pages 하위경로(/repo/)에서도 그대로 동작.
    ===================================================================== */
-const CACHE = '3ls-v5.1.0.0';
+const CACHE = '3ls-v5.2.0.0';
 
 // 오프라인 첫 실행에 필요한 앱 셸. 언어팩을 추가하면 여기에도 넣어주세요.
 const APP_SHELL = [
@@ -25,6 +25,7 @@ const APP_SHELL = [
   './languages/ja-onomatope.js',
   './languages/kr.js',
   './languages/kr-hanja.js',
+  './languages/kr-idiom.js',
   './languages/zh.js',
   './languages/zh-local.js'
 ];

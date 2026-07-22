@@ -3,7 +3,7 @@
 CEFR 기반 10레벨 커리큘럼으로 언어를 학습하는 **설치형 웹앱(PWA)** 입니다.
 서버·앱스토어·APK 불필요 — 브라우저로 열거나, 홈 화면에 설치해 **오프라인**으로 쓸 수 있습니다.
 
-**현재 버전: v5.1.0.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
+**현재 버전: v5.2.0.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
 > 요약(4자리 `LANG.MAJOR.MINOR.PATCH`): **LANG**=지원 언어 수, **MAJOR**=대형 기능/새 콘텐츠 축(단어은행·새 번역 방향 등), **MINOR**=UI·UX 변경, **PATCH**=오류 수정·기존 팩 단어 추가. 왼쪽이 오르면 오른쪽은 0으로 리셋.
 > LANG 자리만 봐도 지원 언어 개수를 알 수 있습니다. 새 버전을 낼 땐 `index.html`의 `APP_VERSION`, `service-worker.js`의 `CACHE`, `manifest.json`의 `version`, 이 문서의 현재 버전을 함께 올려주세요.
 
