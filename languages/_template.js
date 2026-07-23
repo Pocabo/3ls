@@ -18,6 +18,10 @@
    extra        : true 면 같은 target의 확장 콘텐츠(사전 등) — 카드 ▾ 에서 접근, menuLabel로 표기
    tts          : Web Speech API 로케일 (예: 'es-ES', 'de-DE', 'ja-JP')
    specialChars : 화면 키보드로 제공할 특수문자 (없으면 [])
+   columnLabels : (선택) 열 이름 바꾸기. { key:'새이름', … }. key = cat/word/ipa/
+                  meaning/ex/speak. 예: 고사성어 사전 columnLabels:{ipa:'한자'}.
+   columnOrder  : (선택) 열 순서 바꾸기. ['word','ipa','meaning','ex','speak'] 처럼
+                  나열. 목록에 없는 열은 원래 순서로 뒤에 붙음.
 
    ── 단어 스키마 (언어 비종속) ─────────────────────────────
    { w:'표제어(학습 언어)', ipa:'발음',

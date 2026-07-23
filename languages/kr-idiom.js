@@ -16,6 +16,7 @@ registerLanguagePack({
   flag: '🇰🇷',
   tts: 'ko-KR',
   dictionary: true,
+  columnLabels: { ipa: '한자' },   // 발음 열 이름을 "한자"로 (ipa 자리에 한자를 넣었으므로)
   desc: '한자 고사성어(사자성어) 뜻과 유래',
   specialChars: [],
   levels: [
