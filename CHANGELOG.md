@@ -19,6 +19,12 @@
 - `manifest.json`의 `version` 은 브라우저가 읽지 않는 참고용 표기입니다.
 
 ---
+## v5.3.0.1 — 2026-08-04
+**PATCH · 프랑스어 확장 사전 3개 분류 추가 (실용 동사·여행·비즈니스)**
+- `🧾 실용·수속 동사` 22개: annuler·réserver·confirmer·louer·essayer·vérifier·signer 등 (일상 실용 동사)
+- `🧳 여행·호텔` 21개: hôtel·aéroport·billet·passeport·réservation·réception·petit-déjeuner·addition·complet 등
+- `🤝 비즈니스·격식` 18개: entreprise·réunion·contrat·devis·délai + 격식 표현 Veuillez·Pourriez-vous·Cordialement·Ci-joint·N’hésitez pas à·Dans l’attente de votre réponse (register 팁 첨부)
+
 ## v5.3.0.0 — 2026-08-04
 **MAJOR · 🔎 통합검색 신설 — 설치된 모든 언어팩을 한번에 검색**
 - 헤더에 **🔎 Search** 버튼 추가(다시 누르면 학습 홈으로 — 단어은행 버튼과 동일한 토글 방식)
