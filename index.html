@@ -243,6 +243,7 @@ a{color:var(--accent)}
     <div class="menu-panel" id="contentsPanel"></div>
   </div>
   <button class="hbtn" onclick="App.toggleWordbank()" title="단어은행 열기/닫기 — 다시 누르면 학습 홈으로"><span class="hbtn-ic">📚</span><span class="hbtn-tx" id="txWord"> Word</span></button>
+  <button class="hbtn" onclick="App.toggleSearch()" title="통합검색 — 설치된 모든 언어에서 단어 검색"><span class="hbtn-ic">🔎</span><span class="hbtn-tx" id="txSearch"> Search</span></button>
   <button class="hbtn" onclick="App.go('review')" title="복습"><span class="hbtn-ic">🔁</span><span class="hbtn-tx" id="txRemind"> Remind</span><span class="badge" id="reviewBadge" style="display:none">0</span></button>
   <div class="menu-wrap">
     <button class="hbtn" id="menuBtn" onclick="App.toggleMenu(event)" aria-haspopup="true" aria-expanded="false" title="메뉴"><span class="hbtn-ic">⚙</span><span class="hbtn-tx" id="txMenu"> Menu</span></button>
@@ -295,7 +296,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '5.2.1.0';
+  const APP_VERSION = '5.3.0.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -307,6 +308,7 @@ const App = (() => {
   let quiz = null;         // 진행 중 시험 상태
   let flash = null;        // 진행 중 플래시카드 상태
   let wbState = null;      // 단어은행 검색/필터 상태 {q, cat}
+  let gsState = null;      // 통합검색(전체 언어) 상태 {q}
   let colHidden = new Set((()=>{ try{ return JSON.parse(localStorage.getItem('3ls.colHidden')||'[]'); }catch(e){ return []; } })()); // 표에서 접은 열
 
   /* ── 상태 저장/불러오기 ─────────────────────────── */
@@ -365,7 +367,7 @@ const App = (() => {
 
   /* ── i18n: UI 언어 = base ─────────────────────────── */
   const I18N = {
-    ko:{ contents:'콘텐츠', word:'단어은행', remind:'복습', menu:'메뉴',
+    ko:{ contents:'콘텐츠', word:'단어은행', search:'검색', remind:'복습', menu:'메뉴',
          mScreen:'화면', mTheme:'테마', mPacks:'언어팩', mImport:'＋ 언어팩 가져오기 (JSON)',
          thSystem:'시스템', thLight:'라이트', thDark:'다크',
          tWords:'📖 단어', tFlash:'🃏 암기카드', tGrammar:'📐 문법', tEx:'✏️ 연습', tQuiz:'🏁 시험',
@@ -377,8 +379,10 @@ const App = (() => {
          wbAll:'전체', wbShown:'개 표시 중', wbTable:'📋 표', wbCards:'🃏 카드',
          revTitle:'🔁 누적 복습', fcMeaning:'뜻 보기', fcKnow:'😄 알아요', fcDont:'😵 몰라요',
          fcPron:'🔊 발음', fcTap:'(카드를 누르면 뜻이 보입니다)', noResult:'검색 결과가 없습니다.',
-         revEmpty:'지금 복습할 단어가 없습니다.', revDone:'오늘의 복습 완료!', backHome:'홈으로' },
-    en:{ contents:'Contents', word:'Word', remind:'Remind', menu:'Menu',
+         revEmpty:'지금 복습할 단어가 없습니다.', revDone:'오늘의 복습 완료!', backHome:'홈으로',
+         gsTitle:'통합검색', gsHint:'설치된 모든 언어팩에서 단어·뜻·예문을 한번에 검색합니다.',
+         gsPlaceholder:'단어·뜻·예문 검색 (모든 언어)', gsEmpty:'검색어를 입력하세요.' },
+    en:{ contents:'Contents', word:'Word', search:'Search', remind:'Remind', menu:'Menu',
          mScreen:'Display', mTheme:'Theme', mPacks:'Language pack', mImport:'＋ Import pack (JSON)',
          thSystem:'System', thLight:'Light', thDark:'Dark',
          tWords:'📖 Words', tFlash:'🃏 Flashcards', tGrammar:'📐 Grammar', tEx:'✏️ Practice', tQuiz:'🏁 Test',
@@ -390,7 +394,9 @@ const App = (() => {
          wbAll:'All', wbShown:' shown', wbTable:'📋 Table', wbCards:'🃏 Cards',
          revTitle:'🔁 Review', fcMeaning:'Show meaning', fcKnow:'😄 Know it', fcDont:'😵 Don’t know',
          fcPron:'🔊 Pronounce', fcTap:'(tap the card to reveal the meaning)', noResult:'No results.',
-         revEmpty:'Nothing to review right now.', revDone:'Review done for today!', backHome:'Home' },
+         revEmpty:'Nothing to review right now.', revDone:'Review done for today!', backHome:'Home',
+         gsTitle:'Search', gsHint:'Search words, meanings, and examples across every installed language pack at once.',
+         gsPlaceholder:'Search word, meaning, example (all languages)', gsEmpty:'Type to search.' },
   };
   function T(k){ const b=curBase(); return (I18N[b]&&I18N[b][k]!=null)?I18N[b][k]:(I18N.ko[k]||k); }
 
@@ -402,12 +408,13 @@ const App = (() => {
     return String(s??'').normalize('NFC').toLowerCase().replace(/[.!?…]+\s*$/,'').replace(/\s+/g,' ').replace(/[’]/g,"'").trim();
   }
   function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
-  function speak(text){
+  function speak(text, tts){
     if(!('speechSynthesis' in window)) return alert('이 브라우저는 음성 합성을 지원하지 않습니다.');
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = pack().tts;
-    const v = speechSynthesis.getVoices().find(v=>v.lang.replace('_','-').startsWith(pack().tts.split('-')[0]));
+    const lang = tts || pack().tts;
+    u.lang = lang;
+    const v = speechSynthesis.getVoices().find(v=>v.lang.replace('_','-').startsWith(lang.split('-')[0]));
     if(v) u.voice = v;
     u.rate = .92;
     speechSynthesis.speak(u);
@@ -443,13 +450,14 @@ const App = (() => {
 
   /* ── 라우팅 ─────────────────────────────────────── */
   function go(name, arg){
-    view = {name, arg}; quiz=null; flash=null; wbState=null;
+    view = {name, arg}; quiz=null; flash=null; wbState=null; gsState=null;
     render(); window.scrollTo(0,0);
   }
 
   function render(){
     const el = $('#app');
     if(view.name==='picker'){ el.innerHTML = pickerView(); return; } // 언어 선택 화면은 활성 팩과 무관
+    if(view.name==='search'){ el.innerHTML = searchView(); return; } // 통합검색도 활성 팩과 무관
     if(!pack()){ el.innerHTML = '<div class="empty">언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.</div>'; return; }
     if(view.name==='home') el.innerHTML = homeView();
     else if(view.name==='level') el.innerHTML = levelView(view.arg);
@@ -723,6 +731,65 @@ const App = (() => {
   function wbSetMode(m){ wbState.mode = m; localStorage.setItem('3ls.wbMode', m); render(); }
   // 📚 버튼 토글: 단어은행이 열려 있으면 학습 홈으로, 아니면 단어은행으로
   function toggleWordbank(){ go(view.name==='wordbank' ? 'home' : 'wordbank'); }
+
+  /* ── 통합검색: 설치된 모든 언어팩(빈 껍데기 제외)의 단어를 한번에 검색 ─ */
+  function gsPackLabel(p){
+    if(p.extra) return p.menuLabel||p.name;
+    const t = TARGETS[p.target];
+    return (t && (t[curBase()]||t.ko)) || p.name || p.target;
+  }
+  function gsFilteredResults(q){
+    const nq = norm(q).trim();
+    if(!nq) return [];
+    const out = [];
+    Object.values(LANGUAGE_PACKS).forEach(p=>{
+      if(isEmptyPack(p)) return;
+      p.levels.forEach(L=>(L.words||[]).forEach(w=>{
+        const hay = [w.w, w.ipa, w.ex].concat(w.m?Object.values(w.m):[]).concat(w.exm?Object.values(w.exm):[]);
+        if(hay.some(x=>norm(x||'').includes(nq))) out.push({w, p, L});
+      }));
+    });
+    return out;
+  }
+  function gsResultsHtml(){
+    const q = gsState.q;
+    if(!q.trim()) return `<div class="empty" style="padding:26px 0">${T('gsEmpty')}</div>`;
+    const results = gsFilteredResults(q);
+    if(!results.length) return `<div class="empty" style="padding:26px 0">${T('noResult')}</div>`;
+    return `<div class="wb-cards">` + results.map(({w,p,L})=>{
+      const meaning = meaningOf(w) || (w.m && Object.values(w.m).find(v=>String(v||'').trim())) || '';
+      return `<div class="wb-card" onclick="App.gsGoTo('${p.id}',${L.level})">
+        <div class="wb-card-front">
+          <span class="wb-card-word">${p.flag||''} ${esc(w.w)}${genderTag(w.gender)}</span>
+          <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.w)}','${p.tts}')" title="발음 듣기">🔊</button>
+        </div>
+        <div class="wb-card-back" style="display:block; margin-top:8px; padding-top:8px">
+          <span class="pill gray">${esc(gsPackLabel(p))}</span>
+          ${w.ipa? `<div class="w-ipa">${esc(w.ipa)}</div>`:''}
+          ${meaning? `<div class="wb-card-ko">${esc(meaning)}</div>`:''}
+          ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+  function searchView(){
+    if(!gsState) gsState = {q:''};
+    return `<h1>🔎 ${T('gsTitle')}</h1>
+      <p class="sub" style="margin-bottom:16px">${T('gsHint')}</p>
+      <div class="card">
+        <input type="search" id="gsSearch" class="wb-search" placeholder="${esc(T('gsPlaceholder'))}" value="${esc(gsState.q)}" oninput="App.gsSetQuery(this.value)">
+        <div id="gsResults">${gsResultsHtml()}</div>
+      </div>`;
+  }
+  function gsSetQuery(v){
+    gsState.q = v;
+    const res = $('#gsResults');
+    if(res) res.innerHTML = gsResultsHtml();
+  }
+  // 🔎 버튼 토글: 통합검색이 열려 있으면 학습 홈으로, 아니면 통합검색으로
+  function toggleSearch(){ go(view.name==='search' ? 'home' : 'search'); }
+  // 검색 결과 클릭: 그 언어로 전환 후 해당 레벨의 단어 탭으로 이동
+  function gsGoTo(id, level){ switchLang(id, {name:'level', arg:level, tab:'words'}); }
 
   /* ── 플래시카드 ─────────────────────────────────── */
   function flashTab(L){
@@ -1016,14 +1083,16 @@ const App = (() => {
       <div class="menu-sep"></div>
       <div class="menu-label">${T('cContents')}</div>${items}`;
   }
-  function switchLang(id){
+  function switchLang(id, nav){
     if(!LANGUAGE_PACKS[id]) return;
     id = resolvePack(id);              // 빈 껍데기 언어면 1순위 확장 사전으로 redirect
     const p = LANGUAGE_PACKS[id];
     // 현재 base가 이 팩에 없으면, 팩이 지원하는 base로 전환(kr 우선)
     if(!packBases(p).has(curBase())){ const bs=[...packBases(p)]; if(bs.length) S.base = bs.includes('kr')?'kr':bs[0]; }
     S.activeLang = id;
-    save(); applyI18n(); renderContentsMenu(); go('home');
+    save(); applyI18n(); renderContentsMenu();
+    if(nav){ go(nav.name, nav.arg); if(nav.tab){ view.tab = nav.tab; render(); } }
+    else go('home');
   }
   function importPack(input){
     const f = input.files[0]; if(!f) return;
@@ -1095,6 +1164,7 @@ const App = (() => {
   function setTx(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt; }
   function applyI18n(){
     setTx('txContents', ' '+T('contents')); setTx('txWord', ' '+T('word'));
+    setTx('txSearch', ' '+T('search'));
     setTx('txRemind', ' '+T('remind')); setTx('txMenu', ' '+T('menu'));
     setTx('txMScreen', T('mScreen')); setTx('txMTheme', T('mTheme'));
     setTx('txMPacks', T('mPacks')); setTx('txMImport', T('mImport'));
@@ -1136,6 +1206,7 @@ const App = (() => {
     pickChoice, checkBlank, checkBlocks, checkCompose,
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
+    toggleSearch, gsSetQuery, gsGoTo,
     cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, togglePick};
 })();
 </script>
