@@ -14,9 +14,20 @@
 
    ── 필드 규칙 ─────────────────────────────────────────────
    id           : 팩 고유 id (파일명과 맞추기, 예: 'es', 'ja', 'fr-extra')
-   target       : 학습 언어 코드 (예: 'fr','es','ja','kr'). 언어 선택 화면의 카드는 target 기준
+   target       : 학습 언어 코드 (예: 'fr','es','ja','kr'). 언어 선택 화면의 카드는 target 기준.
+                  새 코드를 지어도 됨('ar','solresol','piano' 등) — 엔진 수정 불필요
+   names        : (선택) 언어 선택 카드에 표시할 target 이름을 base별로.
+                  예: names:{kr:'아랍어', en:'Arabic'}. 없으면 name 필드를 씀
    extra        : true 면 같은 target의 확장 콘텐츠(사전 등) — 카드 ▾ 에서 접근, menuLabel로 표기
-   tts          : Web Speech API 로케일 (예: 'es-ES', 'de-DE', 'ja-JP')
+   tts          : Web Speech API 로케일 (예: 'es-ES', 'de-DE', 'ja-JP').
+                  생략하면 발음(듣기) 버튼·열이 전부 자동으로 숨겨짐 — 악보·인공어 등 무음 콘텐츠 OK
+   desc         : (선택) 홈 화면 서브타이틀에 쓸 과정 소개 한 줄. 없으면 "레벨 N개 과정"으로 자동 생성
+   phaseLabels  : (선택) 레벨의 phase 값에 붙일 단계 이름. { intro:'Warm-up', A:'Etudes', … }
+                  없으면 기본 라벨(기초 다지기/Phase A…)을 base 언어로 표시
+   ignoreDiacritics : (선택) true 면 채점 시 발음 구별 부호를 무시.
+                  라틴어 마크론(amāre=amare)처럼 교재용 보조 기호일 때 켠다.
+                  프랑스어 악센트(café)처럼 철자의 일부면 끄고 둔다(기본값).
+   ※ RTL(아랍어·히브리어 등)은 별도 설정 없이 자동으로 올바른 방향으로 표시됩니다.
    specialChars : 화면 키보드로 제공할 특수문자 (없으면 [])
    columnLabels : (선택) 열 이름 바꾸기. { key:'새이름', … }. key = cat/word/ipa/
                   meaning/ex/speak. 예: 고사성어 사전 columnLabels:{ipa:'한자'}.
@@ -28,8 +39,17 @@
      m:{ kr:'한국어 뜻', en:'English meaning' },   // 뜻은 base(설명 언어)로 키잉
      ex:'예문(학습 언어)', exm:{ kr:'예문 번역' },    // 예문 번역도 base로 키잉
      tip:{ kr:'보충 설명' },                        // 팁도 base로 키잉
-     gender:'m'|'f'|'mf'(선택), plural:'복수형'(선택) }
-   · base 무관 필드(w·ipa·ex·gender)는 그대로 두고, base 종속 필드(m·exm·tip)만 맵으로.
+     gender:'m'|'f'|'mf'(선택), plural:'복수형'(선택),
+     say:'발음용 표기'(선택), exSay:'예문 발음용 표기'(선택),
+     id:'SRS 고유키'(선택) }
+   · say / exSay : 화면에 보이는 표기와 TTS로 읽을 표기가 다를 때 씁니다.
+       라틴어 고전식 → {w:'Caesar', say:'Kaisar'} 를 스페인어 음성으로 근사
+       한자 사전    → {w:'呵', ipa:'가', say:'가'} 로 한국어 음을 읽힘
+       일본어 사전  → {w:'合図', ipa:'あいず', say:'あいず'} 로 요미를 읽힘
+     생략하면 w(예문은 ex)를 그대로 읽습니다.
+   · id : 복습(SRS) 진도를 구분하는 키. 생략하면 'L{레벨}|{표제어}'가 자동으로 쓰이며,
+       같은 철자가 여러 레벨에 나와도 진도가 섞이지 않습니다(동형이의어 대응).
+   · base 무관 필드(w·ipa·ex·gender·say)는 그대로 두고, base 종속 필드(m·exm·tip)만 맵으로.
    · 팩이 지원하는 base = 단어 m 에 값이 있는 키들로 자동 결정 (kr만 있으면 KR 모드에서만 노출).
    · base 하나만 쓸 거면 m:{kr:'…'} 처럼 그 키만 채우면 됩니다.
    gender       : 'm' | 'f' | 'mf' | 생략 — 성(性) 구분이 없는 언어(일본어 등)는
@@ -45,10 +65,17 @@
      ko:'해석', accept:['허용 오답 표기'](선택) }
 
    { type:'blocks',  answer:'정답 문장 (공백으로 토큰 분리)', ko:'해석',
-     distractors:['함정 블록'](선택) }
+     answers:['다른 어순도 정답'](선택), distractors:['함정 블록'](선택) }
+   · answers : 어순이 자유로운 언어(라틴어 등)에서 정답이 여럿일 때 나머지를 적습니다.
+     예) answer:'Puella rosam amat', answers:['Rosam puella amat','Puella amat rosam']
 
    { type:'compose', prompt:'작문 지시', mustInclude:['필수 표현', ['대안1','대안2']],
-     minWords:6, sample:'모범 답안' }
+     minWords:6, sample:'모범 답안',
+     minChars:10(선택), checkCase:false(선택), checkEnd:false(선택), endPunct:'。'(선택) }
+   · 길이 검사는 한중일·태국 문자가 섞이면 자동으로 '글자 수' 기준이 됩니다(띄어쓰기를 안 하므로).
+     minChars 로 직접 지정할 수도 있습니다.
+   · 종결부호는 . ! ? 。！？ ؟ ۔ ； ; … 를 기본 허용. endPunct 로 좁히거나
+     checkEnd:false / checkCase:false 로 각 검사를 끌 수 있습니다.
    ===================================================================== */
 
 /* ↓ 주석을 풀고 채워 넣으세요 (스페인어 예시 뼈대)

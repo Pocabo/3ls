@@ -13,6 +13,7 @@ registerLanguagePack({
   flag: '🇨🇳',
   tts: 'zh-CN',
   specialChars: [],
+  desc: '성조·병음부터 시작하는 기초 커리큘럼',
   levels: [
 
   /* ─────────────── LEVEL 1 ─────────────── */

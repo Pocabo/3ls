@@ -17,6 +17,7 @@ registerLanguagePack({
   flag: '🇪🇸',
   tts: 'es-ES',
   specialChars: ['á','é','í','ó','ú','ñ','ü','¿','¡'],
+  desc: 'CEFR 기반 커리큘럼',
   levels: [
 
   /* ─────────────── LEVEL 1 ─────────────── */

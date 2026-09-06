@@ -126,6 +126,8 @@ h2{font-size:1.15rem; margin-bottom:10px}
 .wordtable td{padding:8px; border-bottom:1px solid var(--line); vertical-align:top}
 .wordtable tr:last-child td{border-bottom:none}
 .w-word{font-weight:700; white-space:nowrap}
+/* RTL 대응: 아랍어·히브리어 등은 첫 글자의 방향을 따라 자동 정렬 (팩 수정 불필요) */
+.w-word,.wb-card-word,.wb-card-ex,.flashcard .big,.flashcard .ex,.blankline,.block{unicode-bidi:plaintext}
 .w-ipa{color:var(--sub); font-size:.85rem}
 /* 열 너비 우선순위: 짧은 열(분류·단어·발음·듣기)은 내용에 딱 맞추고(width:1%+nowrap),
    남는 폭은 긴 열(뜻·예문)이 가져간다. → '[ 안녕 ]' 같은 발음이 줄바꿈되지 않음 */
@@ -274,7 +276,7 @@ a{color:var(--accent)}
    ===================================================================== */
 window.LANGUAGE_PACKS = {};
 window.registerLanguagePack = function(pack){
-  const need = ['id','name','tts','levels'];
+  const need = ['id','name','levels'];   // tts는 선택 — 없으면 발음 기능이 자동으로 숨겨진다
   for(const k of need){ if(!(k in pack)) { console.error('언어팩에 "'+k+'" 필드가 없습니다', pack); return; } }
   window.LANGUAGE_PACKS[pack.id] = pack;
 };
@@ -296,7 +298,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '6.3.0.0';
+  const APP_VERSION = '6.3.1.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -359,7 +361,15 @@ const App = (() => {
     }
     return id;
   }
-  function targetName(t){ const x=TARGETS[t]; return x ? (x[curBase()]||x.ko||t) : t; }
+  // target 표시명: 엔진 TARGETS 표 → 팩의 names:{kr,en,…} → 팩 name → 코드 순으로 폴백.
+  // 새 언어를 추가할 때 TARGETS를 고칠 필요 없이, 팩에 names(또는 name)만 있으면 된다.
+  function targetName(t){
+    const x = TARGETS[t], b = curBase();
+    if(x) return x[b]||x.ko||t;
+    const m = mainPackOf(t);
+    if(m) return (m.names && (m.names[b]||m.names.ko)) || m.name || t;
+    return t;
+  }
   const BASE_LABEL = { kr:'한국어', en:'English' };
   // 단어 뜻/예문번역/팁을 현재 base로 골라 반환
   function meaningOf(w){ return (w.m && w.m[curBase()]) || ''; }
@@ -382,7 +392,36 @@ const App = (() => {
          fcPron:'🔊 발음', fcTap:'(카드를 누르면 뜻이 보입니다)', noResult:'검색 결과가 없습니다.',
          revEmpty:'지금 복습할 단어가 없습니다.', revDone:'오늘의 복습 완료!', backHome:'홈으로',
          gsTitle:'통합검색', gsHint:'설치된 모든 언어팩에서 단어·뜻·예문을 한번에 검색합니다.',
-         gsPlaceholder:'단어·뜻·예문 검색 (모든 언어)', gsEmpty:'검색어를 입력하세요.' },
+         gsPlaceholder:'단어·뜻·예문 검색 (모든 언어)', gsEmpty:'검색어를 입력하세요.',
+         exNum:'문제', qItem:'문항', done:'완료',
+         correct:'✅ 정답입니다!', correctIs:'✅ 정답입니다! — "{a}"',
+         wrongIs:'❌ 정답은 "<b>{a}</b>" 입니다.', wrongAns:'❌ 정답: <b>{a}</b>',
+         fillBlank:'빈칸을 채우세요.', check:'확인', again:'다시', listen:'🔊 듣기', listenAns:'🔊 정답 듣기',
+         blocksPrompt:'단어 블록을 순서대로 눌러 문장을 만드세요:', blocksHere:'여기에 문장이 조립됩니다',
+         composePh:'여기에 문장을 입력하세요...', composeBtn:'피드백 받기',
+         tooShort:'문장이 너무 짧습니다 (최소 {n}단어).', tooShortChars:'문장이 너무 짧습니다 (최소 {n}자).', mustUse:'"{k}" (또는 그 활용형)을 사용해 보세요.',
+         capStart:'문장은 대문자로 시작하세요.', endPunct:'문장 끝에 마침표(.), 물음표(?) 등을 붙이세요.',
+         composeOk:'✅ 조건을 모두 충족했습니다!', sampleAns:'모범 답안:',
+         composeNote:'본인 문장과 비교해 보세요. (자동 채점은 형식 검사이며, 문법 정밀 검증은 사전·교사·AI로 이중 확인을 권장합니다)',
+         polish:'📝 다듬을 점:', hintSample:'힌트 모범 답안:',
+         quizTitle:'🏁 Level {n} 마일스톤 시험', quizIntro:'{c}문항 · {s}점 이상이면 통과입니다 (자기 점검용).',
+         bestSoFar:'지금까지 최고 점수:', quizStart:'시험 시작', noQuiz:'이 레벨에는 시험이 없습니다.',
+         scorePts:'{s}점', passMsg:'🎉 통과했습니다!',
+         failMsg:'아쉽습니다. {s}점 이상이 필요해요. 단어·연습 탭을 복습하고 재도전하세요!',
+         retry:'재응시', toMap:'레벨 지도로', quizRunning:'시험 진행 중',
+         quizAuto:'모든 문항에 답하면 자동으로 채점이 완료됩니다.',
+         flashDone:'이 레벨 단어를 모두 확인했습니다!',
+         flashDoneSub:'"몰라요"로 표시한 단어는 복습 큐에 들어갔습니다. 상단 🔁 복습에서 반복하세요.',
+         oneMore:'한 번 더', noGrammar:'이 레벨에는 별도 문법 노트가 없습니다.',
+         noEx:'연습 문제가 없습니다.', noLevel:'레벨을 찾을 수 없습니다.',
+         noPack:'언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.',
+         phIntro:'기초 다지기', phA:'Phase A · 블록 조립', phB:'Phase B · 확장/빈칸', phC:'Phase C · 자유 작문',
+         ttContents:'콘텐츠 · 언어 선택', ttWord:'단어은행 열기/닫기 — 다시 누르면 학습 홈으로',
+         ttSearch:'통합검색 — 설치된 모든 언어에서 단어 검색', ttRemind:'복습', ttMenu:'메뉴',
+         ttExtra:'확장 콘텐츠 보기', ttSpeakW:'발음 듣기', ttSpeakEx:'예문 듣기',
+         noTTS:'이 브라우저는 음성 합성을 지원하지 않습니다.',
+         packLoaded:'언어팩 "{n}" 을(를) 불러왔습니다! (이 브라우저에 저장됨)',
+         packFail:'언어팩을 읽을 수 없습니다: {e} — languages/_template.js 의 스키마를 확인하세요.' },
     en:{ contents:'Contents', word:'Word', search:'Search', remind:'Remind', menu:'Menu',
          mScreen:'Display', mTheme:'Theme', mPacks:'Language pack', mImport:'＋ Import pack (JSON)',
          thSystem:'System', thLight:'Light', thDark:'Dark',
@@ -397,9 +436,40 @@ const App = (() => {
          fcPron:'🔊 Pronounce', fcTap:'(tap the card to reveal the meaning)', noResult:'No results.',
          revEmpty:'Nothing to review right now.', revDone:'Review done for today!', backHome:'Home',
          gsTitle:'Search', gsHint:'Search words, meanings, and examples across every installed language pack at once.',
-         gsPlaceholder:'Search word, meaning, example (all languages)', gsEmpty:'Type to search.' },
+         gsPlaceholder:'Search word, meaning, example (all languages)', gsEmpty:'Type to search.',
+         exNum:'Question', qItem:'Item', done:'Done',
+         correct:'✅ Correct!', correctIs:'✅ Correct! — "{a}"',
+         wrongIs:'❌ The answer is "<b>{a}</b>".', wrongAns:'❌ Answer: <b>{a}</b>',
+         fillBlank:'Fill in the blank.', check:'Check', again:'Reset', listen:'🔊 Listen', listenAns:'🔊 Hear answer',
+         blocksPrompt:'Tap the word blocks in order to build the sentence:', blocksHere:'Your sentence appears here',
+         composePh:'Type your sentence here...', composeBtn:'Get feedback',
+         tooShort:'Sentence too short (min {n} words).', tooShortChars:'Sentence too short (min {n} characters).', mustUse:'Try using "{k}" (or a form of it).',
+         capStart:'Start the sentence with a capital letter.', endPunct:'End with a period (.) or question mark (?).',
+         composeOk:'✅ All requirements met!', sampleAns:'Sample answer:',
+         composeNote:'Compare it with your sentence. (Auto-grading only checks form — double-check grammar with a dictionary, teacher, or AI.)',
+         polish:'📝 To polish:', hintSample:'Hint — sample answer:',
+         quizTitle:'🏁 Level {n} Milestone Test', quizIntro:'{c} items · score {s}+ to pass (self-check).',
+         bestSoFar:'Best so far:', quizStart:'Start test', noQuiz:'This level has no test.',
+         scorePts:'{s} pts', passMsg:'🎉 Passed!',
+         failMsg:'Not yet — you need {s}+. Review the Words and Practice tabs, then try again!',
+         retry:'Retry', toMap:'Level map', quizRunning:'Test in progress',
+         quizAuto:'Grading completes automatically once every item is answered.',
+         flashDone:'You reviewed every word in this level!',
+         flashDoneSub:'Words marked “Don’t know” joined the review queue. Repeat them via 🔁 Remind.',
+         oneMore:'One more round', noGrammar:'No grammar notes for this level.',
+         noEx:'No practice exercises.', noLevel:'Level not found.',
+         noPack:'No language pack found. Check the scripts in the languages/ folder.',
+         phIntro:'Foundations', phA:'Phase A · Build blocks', phB:'Phase B · Expand / fill-in', phC:'Phase C · Free writing',
+         ttContents:'Contents · choose language', ttWord:'Toggle Word Bank — press again to return home',
+         ttSearch:'Search every installed language pack', ttRemind:'Review', ttMenu:'Menu',
+         ttExtra:'Show extra content', ttSpeakW:'Hear the word', ttSpeakEx:'Hear the example',
+         noTTS:'This browser does not support speech synthesis.',
+         packLoaded:'Language pack "{n}" loaded! (saved in this browser)',
+         packFail:'Could not read the language pack: {e} — check the schema in languages/_template.js.' },
   };
   function T(k){ const b=curBase(); return (I18N[b]&&I18N[b][k]!=null)?I18N[b][k]:(I18N.ko[k]||k); }
+  // 자리표시자 치환: TF('quizIntro',{c:10,s:80}) → "10문항 · 80점 이상이면…"
+  function TF(k, vars){ let s=T(k); for(const a in (vars||{})) s=s.split('{'+a+'}').join(vars[a]); return s; }
 
   /* ── 유틸 ───────────────────────────────────────── */
   const $ = sel => document.querySelector(sel);
@@ -408,12 +478,30 @@ const App = (() => {
   function norm(s){ // 답안 비교용 정규화: 소문자, 공백 축약, 끝 문장부호 제거, 유니코드 NFC
     return String(s??'').normalize('NFC').toLowerCase().replace(/[.!?…]+\s*$/,'').replace(/\s+/g,' ').replace(/[’]/g,"'").trim();
   }
+  /* 채점용 정규화. 팩이 ignoreDiacritics:true 면 발음 구별 부호를 지우고 비교한다.
+     라틴어 마크론(amāre/amare)처럼 교재용 보조 기호는 무시해야 하고,
+     프랑스어 악센트(café)처럼 철자의 일부인 언어는 기본값(구분)을 그대로 둔다. */
+  /* 발음용 표기: 팩이 단어에 say(예문은 exSay)를 주면 화면 표기 대신 그것을 읽는다.
+     라틴어 고전식 발음(Caesar→Kaisar)을 스페인어 음성으로 근사하거나,
+     한자 표제어를 한국어 음(山→산)으로 읽히는 데 쓴다. */
+  const sayOf   = w => (w && w.say)   || (w && w.w)  || '';
+  const sayExOf = w => (w && w.exSay) || (w && w.ex) || '';
+
+  function normAns(s){
+    const t = norm(s);
+    return (pack()||{}).ignoreDiacritics
+      ? t.normalize('NFD').replace(/[̀-ͯ]/g,'').normalize('NFC')
+      : t;
+  }
+  // 정답이 여러 개일 수 있는 문제(어순이 자유로운 언어 등): answers 배열을 함께 받는다
+  function answerList(ex){ return [ex.answer].concat(ex.answers||[]).filter(x=>x!=null); }
   function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
   function speak(text, tts){
-    if(!('speechSynthesis' in window)) return alert('이 브라우저는 음성 합성을 지원하지 않습니다.');
+    const lang = tts || (pack() && pack().tts);
+    if(!lang) return; // tts 미지정 팩(인공어·악보 등)은 발음 기능 없음 — 조용히 무시
+    if(!('speechSynthesis' in window)) return alert(T('noTTS'));
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    const lang = tts || pack().tts;
     u.lang = lang;
     const v = speechSynthesis.getVoices().find(v=>v.lang.replace('_','-').startsWith(lang.split('-')[0]));
     if(v) u.voice = v;
@@ -422,7 +510,7 @@ const App = (() => {
   }
   if('speechSynthesis' in window) speechSynthesis.getVoices(); // 보이스 목록 예열
 
-  function allWords(){ return pack().levels.flatMap(L=>L.words.map(w=>({...w, level:L.level}))); }
+  function allWords(){ return pack().levels.flatMap(L=>(L.words||[]).map(w=>({...w, level:L.level}))); }
   function genderTag(g){
     if(g==='m') return '<span class="gender m">m</span>';
     if(g==='f') return '<span class="gender f">f</span>';
@@ -430,19 +518,26 @@ const App = (() => {
     return '';
   }
 
-  /* ── SRS(누적 복습 루프) ────────────────────────── */
+  /* ── SRS(누적 복습 루프) ──────────────────────────
+     키는 팩 안에서 고유해야 한다. 표제어만 쓰면 같은 철자가 여러 레벨/분류에 있을 때
+     (동형이의어, 여러 사전에 겹쳐 실린 단어) 진도가 서로 덮어써진다.
+     → 'L{레벨}|{표제어}' 로 분리하고, 팩이 w.id 를 주면 그것을 우선한다.
+     기존 저장값(표제어만인 옛 키)도 계속 읽어 진도가 리셋되지 않게 한다. */
+  function srsKey(w){ return w.id || ('L'+(w.level??'?')+'|'+w.w); }
+  function srsGet(st, w){ return st.srs[srsKey(w)] || st.srs[w.w] || null; }
   function srsMark(word, known){
     const st = langState();
-    const cur = st.srs[word] || {box:0, due:0};
+    const key = typeof word==='string' ? word : srsKey(word);
+    const prev = typeof word==='string' ? st.srs[word] : srsGet(st, word);
+    const cur = prev ? {...prev} : {box:0, due:0};
     if(known){ cur.box = Math.min(cur.box+1, SRS_DAYS.length-1); }
     else{ cur.box = 0; }
     cur.due = Date.now() + SRS_DAYS[cur.box]*DAY;
-    st.srs[word] = cur; save(); updateBadge();
+    st.srs[key] = cur; save(); updateBadge();
   }
   function dueWords(){
     const st = langState(), now = Date.now();
-    const map = {}; allWords().forEach(w=>map[w.w]=w);
-    return Object.entries(st.srs).filter(([w,v])=>v.due<=now && map[w]).map(([w])=>map[w]);
+    return allWords().filter(w=>{ const v = srsGet(st, w); return v && v.due<=now; });
   }
   function updateBadge(){
     const n = dueWords().length, b = $('#reviewBadge');
@@ -459,7 +554,7 @@ const App = (() => {
     const el = $('#app');
     if(view.name==='picker'){ el.innerHTML = pickerView(); return; } // 언어 선택 화면은 활성 팩과 무관
     if(view.name==='search'){ el.innerHTML = searchView(); return; } // 통합검색도 활성 팩과 무관
-    if(!pack()){ el.innerHTML = '<div class="empty">언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.</div>'; return; }
+    if(!pack()){ el.innerHTML = `<div class="empty">${T('noPack')}</div>`; return; }
     if(view.name==='home') el.innerHTML = homeView();
     else if(view.name==='level') el.innerHTML = levelView(view.arg);
     else if(view.name==='review') el.innerHTML = reviewView();
@@ -469,8 +564,14 @@ const App = (() => {
   }
 
   /* ── 홈: 레벨 지도 ──────────────────────────────── */
+  // 단계 라벨: 팩이 phaseLabels:{intro:'…',A:'…'} 로 직접 공급 가능(과정 성격에 맞게).
+  // 없으면 기본 라벨을 base 언어로. 정의되지 않은 phase 값은 그대로 표시.
   function phaseLabel(p){
-    return {intro:'기초 다지기', A:'Phase A · 블록 조립', B:'Phase B · 확장/빈칸', C:'Phase C · 자유 작문'}[p] || '';
+    if(!p) return '';
+    const custom = (pack()||{}).phaseLabels;
+    if(custom && custom[p]!=null) return custom[p];
+    const def = {intro:T('phIntro'), A:T('phA'), B:T('phB'), C:T('phC')};
+    return def[p] || String(p);
   }
   /* ── 언어 선택 화면 ────────────────────────────────
      제목 옆 Base(설명 언어) 드롭다운으로 KR/EN 전환. 아래엔 그 base의 target들을
@@ -484,7 +585,7 @@ const App = (() => {
       const words = ps.reduce((n,p)=>n+packWordCount(p.id, b),0);      // 현재 base에 뜻이 있는 단어만 집계
       const active = (LANGUAGE_PACKS[S.activeLang]||{}).target===t;
       const caret = extras.length
-        ? `<button class="pick-caret" onclick="App.togglePick('${t}',event)" title="확장 콘텐츠 보기" aria-label="확장 콘텐츠 보기">▾</button>` : '';
+        ? `<button class="pick-caret" onclick="App.togglePick('${t}',event)" title="${esc(T('ttExtra'))}" aria-label="${esc(T('ttExtra'))}">▾</button>` : '';
       const sub = extras.length
         ? `<div class="pick-sub" id="picksub-${t}">${extras.map(k=>
             `<button class="pick-subitem" onclick="App.switchLang('${k.id}')">${k.id===S.activeLang?'● ':''}${k.flag||''} ${esc(k.menuLabel||k.name)}${k.dictionary?` <span class="pill gray">${T('dict')}</span>`:''}</button>`
@@ -539,21 +640,25 @@ const App = (() => {
       const exTotal = (L.exercises||[]).length;
       const pct = exTotal? Math.round(exDone/exTotal*100) : 0;
       if(dict) return `<div class="levelcard" onclick="App.go('level',${L.level})">
-        <span class="phase-tag">${L.words.length} ${T('words')}</span>
+        <span class="phase-tag">${(L.words||[]).length} ${T('words')}</span>
         <h3 style="margin-top:2px">${esc(L.title)}</h3>
         <div class="meta">${esc(L.sub || (enBase?'Tap to view words':'눌러서 단어 보기'))}</div>
       </div>`;
       return `<div class="levelcard" onclick="App.go('level',${L.level})">
         <span class="phase-tag">${esc(phaseLabel(L.phase))}</span>
-        <div class="lv">LEVEL ${L.level} · ${esc(L.cefr)}</div>
+        <div class="lv">LEVEL ${L.level}${L.cefr? ` · ${esc(L.cefr)}`:''}</div>
         <h3>${esc(L.title)}</h3>
-        <div class="meta">${T('words')} ${L.words.length} · ${T('exercises')} ${exTotal}${best!=null? ` · ${enBase?'best':'시험 최고'} <b>${best}%</b>`:''}</div>
+        <div class="meta">${T('words')} ${(L.words||[]).length} · ${T('exercises')} ${exTotal}${best!=null? ` · ${enBase?'best':'시험 최고'} <b>${best}%</b>`:''}</div>
         <div class="progressbar"><div style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
+    // 과정 소개는 팩의 desc가 우선. 없으면 레벨 수로 일반 문구 생성 (CEFR 등 특정 체계를 가정하지 않음)
+    const courseDesc = esc(p.desc || (enBase? `${p.levels.length}-level course` : `레벨 ${p.levels.length}개 과정`));
     const sub = dict
       ? `${esc(p.desc||'')} · <b>${totalWords}</b> ${T('words')} · ${enBase?'Tap a category to browse.':'분류를 눌러 단어를 살펴보세요.'}`
-      : `CEFR 기반 10레벨 커리큘럼 · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 · 모든 레벨 자유 열람(Library) · 시험은 선택 연습입니다.`;
+      : enBase
+        ? `${courseDesc} · <b>${learned}</b>/${totalWords} ${T('words')} in review orbit · all levels open (Library) · tests are optional.`
+        : `${courseDesc} · 단어 ${totalWords}개 중 <b>${learned}</b>개 암기 궤도 진입 · 모든 레벨 자유 열람(Library) · 시험은 선택 연습입니다.`;
     const title = enBase ? targetName(p.target) : (p.name || targetName(p.target));
     return `<h1>${p.flag||''} ${esc(title)} <span class="pill">${esc(p.nativeName||'')}</span></h1>
       <p class="sub" style="margin-bottom:18px">${sub}</p>
@@ -563,7 +668,7 @@ const App = (() => {
   /* ── 레벨 화면(탭: 단어/문법/연습/시험) ─────────── */
   function levelView(lv){
     const L = pack().levels.find(x=>x.level===lv);
-    if(!L) return '<div class="empty">레벨을 찾을 수 없습니다.</div>';
+    if(!L) return `<div class="empty">${T('noLevel')}</div>`;
     const dict = !!pack().dictionary;
     let tab = view.tab || 'words';
     // 사전 팩은 '단어' 탭만 제공 (시험·연습·암기카드 없음)
@@ -619,9 +724,10 @@ const App = (() => {
     if(someFilled(words, w=>w.ex)) cols.push({ key:'ex', th:lbl('ex',T('thEx')), collapsible:true, thCls:'', tdCls:'',
       td: w => w.ex ? `${esc(w.ex)}${exmOf(w)?`<div class="w-ipa">${esc(exmOf(w))}</div>`:''}` : '' });
 
-    cols.push({ key:'speak', th:lbl('speak',T('thSpeak')), collapsible:true, thCls:'col-speak', tdCls:'col-speak',
-      td: w => `<button class="speak" onclick="App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>`
-        + (w.ex?`<button class="speak" onclick="App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button>`:'') });
+    // tts 미지정 팩(악보·인공어 등)은 듣기 열 자체를 렌더하지 않는다
+    if(p.tts) cols.push({ key:'speak', th:lbl('speak',T('thSpeak')), collapsible:true, thCls:'col-speak', tdCls:'col-speak',
+      td: w => `<button class="speak" onclick="App.speak('${jattr(sayOf(w))}')" title="${esc(T('ttSpeakW'))}">🔊</button>`
+        + (w.ex?`<button class="speak" onclick="App.speak('${jattr(sayExOf(w))}')" title="${esc(T('ttSpeakEx'))}">📢</button>`:'') });
 
     // 열 순서 재배치: pack.columnOrder = ['word','ipa',…]. 목록에 없는 열은 원래 순서로 뒤에 붙는다.
     if(Array.isArray(p.columnOrder)){
@@ -655,7 +761,7 @@ const App = (() => {
   }
 
   function wordsTab(L){
-    return `<div class="card">${wordTableHtml(L.words)}</div>`;
+    return `<div class="card">${wordTableHtml(L.words||[])}</div>`;
   }
 
   /* ── 단어은행: 현재 언어팩의 모든 단어를 검색·필터 ─ */
@@ -663,7 +769,7 @@ const App = (() => {
     const p = pack();
     const cat = wbState.cat;
     let words = p.levels.flatMap(L =>
-      (cat==='all' || String(L.level)===String(cat)) ? L.words.map(w=>({...w, catTitle:L.title})) : []
+      (cat==='all' || String(L.level)===String(cat)) ? (L.words||[]).map(w=>({...w, catTitle:L.title})) : []
     );
     const q = norm(wbState.q).trim();
     if(q) words = words.filter(w => {
@@ -685,14 +791,14 @@ const App = (() => {
       <div class="wb-card" onclick="this.classList.toggle('open')">
         <div class="wb-card-front">
           <span class="wb-card-word">${esc(w.w)}${genderTag(w.gender)}</span>
-          <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.w)}')" title="발음 듣기">🔊</button>
+          ${pack().tts? `<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(sayOf(w))}')" title="${esc(T('ttSpeakW'))}">🔊</button>`:''}
         </div>
         <div class="wb-card-back">
           ${w.ipa? `<div class="w-ipa">${esc(w.ipa)}</div>`:''}
           ${meaningOf(w)? `<div class="wb-card-ko">${esc(meaningOf(w))}</div>`:''}
           ${w.plural? `<div class="w-ipa">${curBase()==='en'?'pl.':'복수:'} ${esc(w.plural)}</div>`:''}
           ${w.ex? `<div class="wb-card-ex">${esc(w.ex)}${exmOf(w)?`<div class="w-ipa">${esc(exmOf(w))}</div>`:''}
-            <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.ex)}')" title="예문 듣기">📢</button></div>`:''}
+            ${pack().tts? `<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(sayExOf(w))}')" title="${esc(T('ttSpeakEx'))}">📢</button>`:''}</div>`:''}
           ${tipOf(w)? `<div class="hint">💡 ${esc(tipOf(w))}</div>`:''}
         </div>
       </div>`).join('') + `</div>`;
@@ -735,21 +841,30 @@ const App = (() => {
 
   /* ── 통합검색: 설치된 모든 언어팩(빈 껍데기 제외)의 단어를 한번에 검색 ─ */
   function gsPackLabel(p){
-    if(p.extra) return p.menuLabel||p.name;
-    const t = TARGETS[p.target];
-    return (t && (t[curBase()]||t.ko)) || p.name || p.target;
+    return p.extra ? (p.menuLabel||p.name) : targetName(p.target);
   }
-  function gsFilteredResults(q){
-    const nq = norm(q).trim();
-    if(!nq) return [];
-    const out = [];
+  /* 통합검색 인덱스: 매 키 입력마다 전 팩을 norm() 하면 팩이 늘수록 급격히 느려진다.
+     (측정: 4,900단어에서 키당 54ms). 검색 대상 문자열을 미리 한 번만 정규화해 캐시한다.
+     팩이 추가/가져오기되면 팩 개수가 달라지므로 그때 자동으로 다시 만든다. */
+  let gsIndex = null, gsIndexSize = -1;
+  function buildSearchIndex(){
+    const idx = [];
     Object.values(LANGUAGE_PACKS).forEach(p=>{
       if(isEmptyPack(p)) return;
       p.levels.forEach(L=>(L.words||[]).forEach(w=>{
         const hay = [w.w, w.ipa, w.ex].concat(w.m?Object.values(w.m):[]).concat(w.exm?Object.values(w.exm):[]);
-        if(hay.some(x=>norm(x||'').includes(nq))) out.push({w, p, L});
+        idx.push({w, p, L, hay: hay.map(x=>norm(x||'')).filter(Boolean).join('')});
       }));
     });
+    gsIndex = idx; gsIndexSize = Object.keys(LANGUAGE_PACKS).length;
+    return idx;
+  }
+  function gsFilteredResults(q){
+    const nq = norm(q).trim();
+    if(!nq) return [];
+    if(!gsIndex || gsIndexSize !== Object.keys(LANGUAGE_PACKS).length) buildSearchIndex();
+    const out = [];
+    for(const e of gsIndex){ if(e.hay.includes(nq)) out.push(e); }
     return out;
   }
   function gsResultsHtml(){
@@ -762,7 +877,7 @@ const App = (() => {
       return `<div class="wb-card" onclick="App.gsGoTo('${p.id}',${L.level})">
         <div class="wb-card-front">
           <span class="wb-card-word">${p.flag||''} ${esc(w.w)}${genderTag(w.gender)}</span>
-          <button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(w.w)}','${p.tts}')" title="발음 듣기">🔊</button>
+          ${p.tts? `<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(sayOf(w))}','${p.tts}')" title="${esc(T('ttSpeakW'))}">🔊</button>`:''}
         </div>
         <div class="wb-card-back" style="display:block; margin-top:8px; padding-top:8px">
           <span class="pill gray">${esc(gsPackLabel(p))}</span>
@@ -782,10 +897,15 @@ const App = (() => {
         <div id="gsResults">${gsResultsHtml()}</div>
       </div>`;
   }
+  // 타이핑 중에는 그리기를 미룬다(디바운스). 빠르게 치면 마지막 한 번만 렌더.
+  let gsTimer = null;
   function gsSetQuery(v){
     gsState.q = v;
-    const res = $('#gsResults');
-    if(res) res.innerHTML = gsResultsHtml();
+    clearTimeout(gsTimer);
+    gsTimer = setTimeout(()=>{
+      const res = $('#gsResults');
+      if(res) res.innerHTML = gsResultsHtml();
+    }, 120);
   }
   // 🔎 버튼 토글: 통합검색이 열려 있으면 학습 홈으로, 아니면 통합검색으로
   function toggleSearch(){ go(view.name==='search' ? 'home' : 'search'); }
@@ -794,12 +914,13 @@ const App = (() => {
 
   /* ── 플래시카드 ─────────────────────────────────── */
   function flashTab(L){
-    if(!flash) flash = {cards: shuffle(L.words), i:0, open:false};
+    // level을 붙여야 SRS 키가 복습 화면(allWords 기반)과 같아진다
+    if(!flash) flash = {cards: shuffle((L.words||[]).map(w=>({...w, level:L.level}))), i:0, open:false};
     if(flash.i >= flash.cards.length)
       return `<div class="card flashwrap"><div class="scorebig">🎉</div>
-        <p class="resultmsg">이 레벨 단어를 모두 확인했습니다!</p>
-        <p class="sub" style="margin-top:6px">"몰라요"로 표시한 단어는 복습 큐에 들어갔습니다. 상단 🔁 복습에서 반복하세요.</p>
-        <div class="flashbtns"><button class="btn primary" onclick="App.flashRestart()">한 번 더</button></div></div>`;
+        <p class="resultmsg">${T('flashDone')}</p>
+        <p class="sub" style="margin-top:6px">${T('flashDoneSub')}</p>
+        <div class="flashbtns"><button class="btn primary" onclick="App.flashRestart()">${T('oneMore')}</button></div></div>`;
     const w = flash.cards[flash.i];
     const front = `<div class="big">${esc(w.w)}</div><div class="ipa">${esc(w.ipa||'')} ${genderTag(w.gender)}</div>
       <div class="ex sub">${T('fcTap')}</div>`;
@@ -810,26 +931,26 @@ const App = (() => {
       <p class="sub">${flash.i+1} / ${flash.cards.length}</p>
       <div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
       <div class="flashbtns">
-        <button class="btn" onclick="App.speak('${jattr(w.w)}')">${T('fcPron')}</button>
+        ${pack().tts? `<button class="btn" onclick="App.speak('${jattr(sayOf(w))}')">${T('fcPron')}</button>`:''}
         ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">${T('fcDont')}</button>
         <button class="btn good" onclick="App.flashMark(true)">${T('fcKnow')}</button>`
         : `<button class="btn primary" onclick="App.flashFlip()">${T('fcMeaning')}</button>`}
       </div></div>`;
   }
-  function flashFlip(){ if(flash){ flash.open=!flash.open; if(flash.open) speak(flash.cards[flash.i].w); render(); } }
-  function flashMark(known){ srsMark(flash.cards[flash.i].w, known); flash.i++; flash.open=false; render(); }
+  function flashFlip(){ if(flash){ flash.open=!flash.open; if(flash.open) speak(sayOf(flash.cards[flash.i])); render(); } }
+  function flashMark(known){ srsMark(flash.cards[flash.i], known); flash.i++; flash.open=false; render(); }
   function flashRestart(){ flash=null; render(); }
 
   function grammarTab(L){
-    if(!(L.grammar||[]).length) return '<div class="empty">이 레벨에는 별도 문법 노트가 없습니다.</div>';
+    if(!(L.grammar||[]).length) return `<div class="empty">${T('noGrammar')}</div>`;
     return L.grammar.map(g=>`<div class="card"><div class="grammarbox"><h3>${esc(g.title)}</h3>${g.html}</div></div>`).join('');
   }
 
   /* ── 연습 문제 렌더러(4종: choice / blank / blocks / compose) ── */
   function exTab(L){
-    if(!(L.exercises||[]).length) return '<div class="empty">연습 문제가 없습니다.</div>';
+    if(!(L.exercises||[]).length) return `<div class="empty">${T('noEx')}</div>`;
     const html = L.exercises.map((ex,i)=>`<div class="card exercise" id="ex-${i}">
-      <div class="ex-num">문제 ${i+1} / ${L.exercises.length} ${langState().doneEx['L'+L.level]?.[i]? '<span class="pill green">완료</span>':''}</div>
+      <div class="ex-num">${T('exNum')} ${i+1} / ${L.exercises.length} ${langState().doneEx['L'+L.level]?.[i]? `<span class="pill green">${T('done')}</span>`:''}</div>
       ${renderExercise(ex, 'ex', i)}</div>`).join('');
     return html;
   }
@@ -838,7 +959,7 @@ const App = (() => {
     const id = ns+'-'+i;
     if(ex.type==='choice'){
       return `<div class="ex-prompt">${esc(ex.q)}</div>
-        ${ex.audio? `<button class="btn" style="margin-bottom:10px" onclick="App.speak('${jattr(ex.audio)}')">🔊 듣기</button>`:''}
+        ${(ex.audio && pack().tts)? `<button class="btn" style="margin-bottom:10px" onclick="App.speak('${jattr(ex.audio)}')">${T('listen')}</button>`:''}
         <div id="${id}-opts">${ex.options.map((o,oi)=>`<button class="choiceopt" onclick="App.pickChoice('${ns}',${i},${oi})">${esc(o)}</button>`).join('')}</div>
         <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
     }
@@ -847,16 +968,16 @@ const App = (() => {
       let line = '';
       parts.forEach((p,pi)=>{
         line += esc(p);
-        if(pi < parts.length-1) line += `<input class="blankinput" id="${id}-in-${pi}" autocomplete="off" autocapitalize="off">`;
+        if(pi < parts.length-1) line += `<input class="blankinput" id="${id}-in-${pi}" dir="auto" autocomplete="off" autocapitalize="off">`;
       });
       const ansArr = Array.isArray(ex.answer)? ex.answer : [ex.answer];
       let bi = 0;
       const spoken = ex.text.replace(/___/g, () => ansArr[bi++] ?? ''); // 각 빈칸에 대응하는 정답으로 치환해 읽기
-      return `<div class="ex-prompt">${esc(ex.prompt||'빈칸을 채우세요.')} ${ex.ko?`<span class="sub">(${esc(ex.ko)})</span>`:''}</div>
+      return `<div class="ex-prompt">${esc(ex.prompt||T('fillBlank'))} ${ex.ko?`<span class="sub">(${esc(ex.ko)})</span>`:''}</div>
         <div class="blankline">${line}
-        <button class="speak" onclick="App.speak('${jattr(spoken)}')">🔊</button></div>
+        ${pack().tts? `<button class="speak" onclick="App.speak('${jattr(spoken)}')">🔊</button>`:''}</div>
         ${charBar(id)}
-        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkBlank('${ns}',${i})">확인</button></div>
+        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkBlank('${ns}',${i})">${T('check')}</button></div>
         <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
     }
     if(ex.type==='blocks'){
@@ -864,20 +985,20 @@ const App = (() => {
       const tokens = shuffle(answerTokens.concat(ex.distractors||[]));
       window.__blocks = window.__blocks || {};
       window.__blocks[id] = {pool: tokens, ans: [], solution: answerTokens};
-      return `<div class="ex-prompt">단어 블록을 순서대로 눌러 문장을 만드세요: <span class="sub">"${esc(ex.ko)}"</span></div>
+      return `<div class="ex-prompt">${T('blocksPrompt')} <span class="sub">"${esc(ex.ko)}"</span></div>
         <div class="blockanswer" id="${id}-ans"></div>
         <div class="blockpool" id="${id}-pool"></div>
         <div class="flashbtns" style="justify-content:flex-start">
-          <button class="btn primary" onclick="App.checkBlocks('${ns}',${i})">확인</button>
-          <button class="btn" onclick="App.resetBlocks('${ns}',${i})">다시</button>
-          <button class="btn" onclick="App.speak('${jattr(ex.answer)}')">🔊 정답 듣기</button></div>
+          <button class="btn primary" onclick="App.checkBlocks('${ns}',${i})">${T('check')}</button>
+          <button class="btn" onclick="App.resetBlocks('${ns}',${i})">${T('again')}</button>
+          ${pack().tts? `<button class="btn" onclick="App.speak('${jattr(ex.answer)}')">${T('listenAns')}</button>`:''}</div>
         <div class="feedback" id="${id}-fb"></div>${ex.hint?`<div class="hint">💡 ${esc(ex.hint)}</div>`:''}`;
     }
     if(ex.type==='compose'){
       return `<div class="ex-prompt">${esc(ex.prompt)}</div>
-        <textarea class="compose" id="${id}-in" placeholder="여기에 문장을 입력하세요..."></textarea>
+        <textarea class="compose" id="${id}-in" dir="auto" placeholder="${esc(T('composePh'))}"></textarea>
         ${charBar(id, true)}
-        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkCompose('${ns}',${i})">피드백 받기</button></div>
+        <div class="flashbtns" style="justify-content:flex-start"><button class="btn primary" onclick="App.checkCompose('${ns}',${i})">${T('composeBtn')}</button></div>
         <div class="feedback" id="${id}-fb"></div>`;
     }
     return '';
@@ -909,7 +1030,7 @@ const App = (() => {
       const st = langState(); const key='L'+view.arg;
       st.doneEx[key] = st.doneEx[key]||{}; st.doneEx[key][i]=true; save();
       const numEl = document.querySelector('#ex-'+i+' .ex-num');
-      if(numEl && !numEl.querySelector('.pill')) numEl.insertAdjacentHTML('beforeend',' <span class="pill green">완료</span>');
+      if(numEl && !numEl.querySelector('.pill')) numEl.insertAdjacentHTML('beforeend',` <span class="pill green">${T('done')}</span>`);
     }
     if(ns==='quiz'){ quiz.graded[i] = !!correct; }
   }
@@ -925,7 +1046,7 @@ const App = (() => {
       else if(bi===oi) b.classList.add('wrong');
     });
     const ok = oi===ex.answer;
-    fb(id, ok?'ok':'no', ok? '✅ 정답입니다!' : `❌ 정답은 "<b>${esc(ex.options[ex.answer])}</b>" 입니다.${ex.why? '<br>'+esc(ex.why):''}`);
+    fb(id, ok?'ok':'no', ok? T('correct') : TF('wrongIs',{a:esc(ex.options[ex.answer])}) + (ex.why? '<br>'+esc(ex.why):''));
     markDone(ns,i,ok); afterGrade(ns);
   }
   /* 채점: blank */
@@ -939,10 +1060,10 @@ const App = (() => {
       const val = inp? inp.value : '';
       got.push(val);
       const accepted = [a].concat(ex.accept?.[ai]||ex.accept||[]).filter(x=>typeof x==='string');
-      if(!accepted.some(acc=>norm(acc)===norm(val))) allOk=false;
+      if(!accepted.some(acc=>normAns(acc)===normAns(val))) allOk=false;
     });
-    fb(id, allOk?'ok':'no', allOk? '✅ 정답입니다!'
-      : `❌ 정답: <b>${answers.map(esc).join(', ')}</b>${ex.why? '<br>'+esc(ex.why):''}`);
+    fb(id, allOk?'ok':'no', allOk? T('correct')
+      : TF('wrongAns',{a:answers.map(esc).join(', ')}) + (ex.why? '<br>'+esc(ex.why):''));
     markDone(ns,i,allOk); afterGrade(ns);
   }
   /* 채점: blocks */
@@ -952,7 +1073,7 @@ const App = (() => {
     if(!pool||!ans) return;
     pool.innerHTML = B.pool.map((t,ti)=>`<button class="block" onclick="App.moveBlock('${id}',${ti},true)">${esc(t)}</button>`).join('');
     ans.innerHTML = B.ans.map((t,ti)=>`<button class="block" onclick="App.moveBlock('${id}',${ti},false)">${esc(t)}</button>`).join('')
-      || '<span class="sub" style="align-self:center">여기에 문장이 조립됩니다</span>';
+      || `<span class="sub" style="align-self:center">${T('blocksHere')}</span>`;
   }
   function moveBlock(id, ti, toAns){
     const B = window.__blocks[id];
@@ -967,10 +1088,14 @@ const App = (() => {
   function checkBlocks(ns, i){
     const ex = currentItems(ns)[i], id = ns+'-'+i, B = window.__blocks[id];
     if(quizLockedOrDone(ns,i)) return;
-    const ok = norm(B.ans.join(' ')) === norm(ex.answer);
-    fb(id, ok?'ok':'no', ok? `✅ 정답입니다! — "${esc(ex.answer)}"`
-      : `❌ 정답: <b>${esc(ex.answer)}</b>${ex.why? '<br>'+esc(ex.why):''}`);
-    if(ok) speak(ex.answer);
+    // 어순이 자유로운 언어(라틴어 등)를 위해 복수 정답 허용: ex.answers 에 나머지를 적는다
+    const got = normAns(B.ans.join(' '));
+    const list = answerList(ex);
+    const hit = list.find(a=>normAns(a)===got);
+    const ok = !!hit;
+    fb(id, ok?'ok':'no', ok? TF('correctIs',{a:esc(hit)})
+      : TF('wrongAns',{a:esc(ex.answer)}) + (ex.why? '<br>'+esc(ex.why):''));
+    if(ok) speak(hit);
     markDone(ns,i,ok); afterGrade(ns);
   }
   /* 채점: compose(자유 작문 휴리스틱 피드백) */
@@ -978,18 +1103,31 @@ const App = (() => {
     const ex = currentItems(ns)[i], id = ns+'-'+i;
     const val = document.getElementById(id+'-in').value.trim();
     const issues = [];
+    // 길이 판정: 공백으로 단어를 나누지 않는 언어(중국어·일본어·태국어 등)에서는
+    // 공백 분리가 항상 1이 되어 최소 단어 조건이 영구 실패한다.
+    // 공백이 거의 없는 문자열이면 글자 수로 판정한다. 팩이 minChars로 직접 지정도 가능.
     const words = val.split(/\s+/).filter(Boolean);
-    if(words.length < (ex.minWords||5)) issues.push(`문장이 너무 짧습니다 (최소 ${ex.minWords||5}단어).`);
+    // 한중일·태국·크메르·라오 문자가 섞이면 글자 수로 센다 (이 언어들은 띄어쓰기를 하지 않음)
+    const SPACELESS = /[぀-ヿ㐀-鿿豈-﫿฀-๿ក-៿຀-໿]/;
+    if(ex.minChars || SPACELESS.test(val)){
+      const need = ex.minChars || ex.minWords || 5;   // 글자 하나가 형태소급이라 그대로 비교
+      if([...val].length < need) issues.push(TF('tooShortChars',{n:need}));
+    }else if(words.length < (ex.minWords||5)) issues.push(TF('tooShort',{n:ex.minWords||5}));
     (ex.mustInclude||[]).forEach(k=>{
       const keys = Array.isArray(k)? k : [k];
-      if(!keys.some(kk=>norm(val).includes(norm(kk)))) issues.push(`"${keys[0]}" (또는 그 활용형)을 사용해 보세요.`);
+      if(!keys.some(kk=>norm(val).includes(norm(kk)))) issues.push(TF('mustUse',{k:keys[0]}));
     });
-    if(val && val[0] !== val[0].toUpperCase()) issues.push('문장은 대문자로 시작하세요.');
-    if(val && !/[.!?]$/.test(val)) issues.push('문장 끝에 마침표(.), 물음표(?) 등을 붙이세요.');
+    // 대문자 검사: 대소문자가 없는 문자 체계(CJK·아랍어 등)에서는 toUpperCase()가 자기 자신이라
+    // 자동으로 통과한다. 팩이 checkCase:false 로 끌 수도 있다.
+    if(ex.checkCase!==false && val && val[0] !== val[0].toUpperCase()) issues.push(T('capStart'));
+    // 종결부호: 라틴 문자권의 . ! ? 만 보면 일본어 。중국어 。아랍어 ؟ 그리스어 ; 가 전부 오탐.
+    // 팩이 endPunct(문자열 또는 배열)로 직접 지정 가능.
+    const ENDS = ex.endPunct ? [].concat(ex.endPunct) : ['.','!','?','。','！','？','؟','۔','；',';','…'];
+    if(ex.checkEnd!==false && val && !ENDS.some(e=>val.endsWith(e))) issues.push(T('endPunct'));
     const ok = val && issues.length===0;
     fb(id, ok?'ok':'info', ok
-      ? `✅ 조건을 모두 충족했습니다!<br><b>모범 답안:</b> ${esc(ex.sample)}<br><span class="sub">본인 문장과 비교해 보세요. (자동 채점은 형식 검사이며, 문법 정밀 검증은 사전·교사·AI로 이중 확인을 권장합니다)</span>`
-      : `📝 다듬을 점:<ul>${issues.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><span class="sub">힌트 모범 답안: ${esc(ex.sample)}</span>`);
+      ? `${T('composeOk')}<br><b>${T('sampleAns')}</b> ${esc(ex.sample)}<br><span class="sub">${T('composeNote')}</span>`
+      : `${T('polish')}<ul>${issues.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><span class="sub">${T('hintSample')} ${esc(ex.sample)}</span>`);
     markDone(ns,i,ok); afterGrade(ns);
   }
   function quizLockedOrDone(ns,i){ return ns==='quiz' && quiz && quiz.graded[i]!==undefined && quiz.graded[i]!==null; }
@@ -997,13 +1135,14 @@ const App = (() => {
   /* ── 마일스톤 시험 ──────────────────────────────── */
   function quizTab(L){
     const st = langState();
+    if(!(L.quiz||[]).length) return `<div class="empty">${T('noQuiz')}</div>`;
     if(!quiz){
       const best = st.quizBest[L.level];
       return `<div class="card" style="text-align:center">
-        <h2>🏁 Level ${L.level} 마일스톤 시험</h2>
-        <p class="sub">${(L.quiz||[]).length}문항 · ${PASS_SCORE}점 이상이면 Level ${L.level+1}이 열립니다.
-        ${best!=null? `<br>지금까지 최고 점수: <b>${best}%</b>`:''}</p>
-        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">시험 시작</button></div></div>`;
+        <h2>${TF('quizTitle',{n:L.level})}</h2>
+        <p class="sub">${TF('quizIntro',{c:L.quiz.length, s:PASS_SCORE})}
+        ${best!=null? `<br>${T('bestSoFar')} <b>${best}%</b>`:''}</p>
+        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">${T('quizStart')}</button></div></div>`;
     }
     if(quiz.finished){
       const total = quiz.items.length;
@@ -1011,17 +1150,17 @@ const App = (() => {
       const score = Math.round(okCount/total*100);
       const passed = score >= PASS_SCORE;
       return `<div class="card">
-        <div class="scorebig" style="color:${passed?'var(--good)':'var(--bad)'}">${score}점</div>
-        <p class="resultmsg">${passed? `🎉 통과! Level ${L.level+1}이 열렸습니다.` : `아쉽습니다. ${PASS_SCORE}점 이상이 필요해요. 단어·연습 탭을 복습하고 재도전하세요!`}</p>
+        <div class="scorebig" style="color:${passed?'var(--good)':'var(--bad)'}">${TF('scorePts',{s:score})}</div>
+        <p class="resultmsg">${passed? T('passMsg') : TF('failMsg',{s:PASS_SCORE})}</p>
         <div class="dots">${quiz.graded.map(g=>`<span class="${g?'ok':'no'}"></span>`).join('')}</div>
-        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">재응시</button>
-        <button class="btn" onclick="App.go('home')">레벨 지도로</button></div></div>`;
+        <div class="flashbtns"><button class="btn primary" onclick="App.startQuiz()">${T('retry')}</button>
+        <button class="btn" onclick="App.go('home')">${T('toMap')}</button></div></div>`;
     }
     const html = quiz.items.map((ex,i)=>`<div class="card exercise">
-      <div class="ex-num">문항 ${i+1} / ${quiz.items.length}</div>${renderExercise(ex,'quiz',i)}</div>`).join('');
-    return `<div class="quizhead"><h2>시험 진행 중</h2><span class="pill" id="quizProg">0 / ${quiz.items.length}</span></div>
+      <div class="ex-num">${T('qItem')} ${i+1} / ${quiz.items.length}</div>${renderExercise(ex,'quiz',i)}</div>`).join('');
+    return `<div class="quizhead"><h2>${T('quizRunning')}</h2><span class="pill" id="quizProg">0 / ${quiz.items.length}</span></div>
       ${html}<div class="card" style="text-align:center" id="quizSubmitCard">
-      <p class="sub">모든 문항에 답하면 자동으로 채점이 완료됩니다.</p></div>`;
+      <p class="sub">${T('quizAuto')}</p></div>`;
   }
   function startQuiz(){
     const L = pack().levels.find(x=>x.level===view.arg);
@@ -1062,7 +1201,7 @@ const App = (() => {
     return `<h1>${T('revTitle')} <span class="pill">${flash.cards.length - flash.i}</span></h1>
       <div class="flashwrap"><div class="flashcard" onclick="App.flashFlip()">${flash.open? back: front}</div>
       <div class="flashbtns">
-        <button class="btn" onclick="App.speak('${jattr(w.w)}')">${T('fcPron')}</button>
+        ${pack().tts? `<button class="btn" onclick="App.speak('${jattr(sayOf(w))}')">${T('fcPron')}</button>`:''}
         ${flash.open? `<button class="btn bad" onclick="App.flashMark(false)">${T('fcDont')}</button>
         <button class="btn good" onclick="App.flashMark(true)">${T('fcKnow')}</button>`
         : `<button class="btn primary" onclick="App.flashFlip()">${T('fcMeaning')}</button>`}
@@ -1110,8 +1249,8 @@ const App = (() => {
         S.activeLang = resolvePack(pk.id);
         const bs=[...packBases(LANGUAGE_PACKS[S.activeLang])]; if(bs.length && !bs.includes(curBase())) S.base = bs.includes('kr')?'kr':bs[0];
         save(); applyI18n(); renderContentsMenu(); go('home');
-        alert(`언어팩 "${pk.name}" 을(를) 불러왔습니다! (이 브라우저에 저장됨)`);
-      }catch(e){ alert('언어팩을 읽을 수 없습니다: '+e.message+'\nlanguages/_template.js 의 스키마를 확인하세요.'); }
+        alert(TF('packLoaded',{n:pk.name}));
+      }catch(e){ alert(TF('packFail',{e:e.message})); }
     };
     r.readAsText(f); input.value='';
   }
@@ -1170,6 +1309,15 @@ const App = (() => {
     setTx('txRemind', ' '+T('remind')); setTx('txMenu', ' '+T('menu'));
     setTx('txMScreen', T('mScreen')); setTx('txMTheme', T('mTheme'));
     setTx('txMPacks', T('mPacks')); setTx('txMImport', T('mImport'));
+    // 헤더 버튼 툴팁(title)도 base 언어로
+    const tip=(id,k)=>{ const el=document.getElementById(id); if(el) el.title=T(k); };
+    tip('contentsBtn','ttContents'); tip('menuBtn','ttMenu');
+    document.querySelectorAll('.hbtn').forEach(b=>{
+      const on=b.getAttribute('onclick')||'';
+      if(on.includes('toggleWordbank')) b.title=T('ttWord');
+      else if(on.includes('toggleSearch')) b.title=T('ttSearch');
+      else if(on.includes("go('review')")) b.title=T('ttRemind');
+    });
     applyTheme(currentTheme()); // 테마 라벨(시스템/라이트/다크)도 언어에 맞춰 갱신
   }
 
