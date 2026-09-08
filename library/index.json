@@ -1,0 +1,14 @@
+{
+ "_comment": "3Ls 서재 목록. 이 파일만 서재 화면을 열 때 읽고, 본문은 [받기]를 누른 것만 내려받는다. service-worker.js 의 APP_SHELL 에 library/ 를 넣지 말 것 — 넣으면 앱을 켜자마자 전부 받아진다.",
+ "docs": [
+  {
+   "id": "la-vulgata-genesis",
+   "file": "la-vulgata-genesis.json",
+   "name": "불가타 — 창세기",
+   "target": "la",
+   "lines": 31,
+   "size": "18 KB",
+   "desc": "라틴어 불가타 성경 창세기 1장. 절 번호 표지가 붙고, 낱말을 더블클릭하면 굴절형까지 뜻이 뜹니다 (본문 낱말 213형태 전수 수록)."
+  }
+ ]
+}
