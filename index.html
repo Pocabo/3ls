@@ -126,6 +126,53 @@ h2{font-size:1.15rem; margin-bottom:10px}
 .wordtable td{padding:8px; border-bottom:1px solid var(--line); vertical-align:top}
 .wordtable tr:last-child td{border-bottom:none}
 .w-word{font-weight:700; white-space:nowrap}
+/* 읽기(원문 강독) */
+.read-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px}
+.read-title{margin:0; font-size:1.15rem}
+.read-src{font-size:.82rem; color:var(--muted); margin-top:3px}
+.read-body{border-top:1px solid var(--line)}
+.read-line{padding:10px 4px; border-bottom:1px solid var(--line); cursor:pointer;
+           content-visibility:auto; contain-intrinsic-size:auto 52px}
+.read-line:hover{background:var(--soft)}
+.read-body{font-size:1rem}
+.read-t{font-size:1.05em; line-height:1.7}
+.read-t .speak{margin-left:6px; vertical-align:middle}
+.read-n{display:inline-block; min-width:2.6em; margin-right:8px; color:var(--muted);
+        font-size:.72em; font-variant-numeric:tabular-nums; vertical-align:baseline; user-select:none}
+.read-line.hit{background:#ffe9a8; transition:background .5s}
+html[data-theme=dark] .read-line.hit{background:#4a3f18}
+.read-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0 12px}
+.read-toc{flex:1 1 200px; min-width:0; padding:7px 9px; border:1px solid var(--line);
+          border-radius:9px; background:var(--card); color:var(--fg); font-size:.9rem}
+.read-find{flex:1 1 160px; min-width:0; padding:7px 10px; border:1px solid var(--line);
+           border-radius:9px; background:var(--card); color:var(--fg); font-size:.9rem}
+.read-size button{padding:5px 10px; border:1px solid var(--line); border-radius:8px;
+                  background:var(--card); color:var(--fg); cursor:pointer; font-size:.85rem}
+.read-resume{display:flex; align-items:center; justify-content:space-between; gap:10px;
+             padding:9px 12px; margin-bottom:12px; border:1px solid var(--line);
+             border-radius:10px; background:var(--soft); font-size:.88rem}
+.read-hits{margin-bottom:12px; max-height:230px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+.read-hit{padding:8px 11px; border-bottom:1px solid var(--line); cursor:pointer; font-size:.88rem}
+.read-hit:last-child{border-bottom:0}
+.read-hit:hover{background:var(--soft)}
+.read-hit b{color:var(--accent)}
+.rd-pop{position:fixed; z-index:60; max-width:min(320px,88vw); padding:11px 13px;
+        border:1px solid var(--line); border-radius:12px; background:var(--card);
+        box-shadow:0 10px 30px rgba(0,0,0,.18); font-size:.9rem}
+.rd-pop .rp-w{font-weight:700; font-size:1.05rem; margin-bottom:2px}
+.rd-pop .rp-src{font-size:.72rem; color:var(--muted); margin-bottom:6px}
+.rd-pop .rp-m{line-height:1.55}
+.rd-pop .rp-act{display:flex; gap:6px; margin-top:9px}
+.rd-pop .rp-act button{flex:1; padding:5px 8px; border:1px solid var(--line); border-radius:8px;
+                       background:var(--soft); color:var(--fg); cursor:pointer; font-size:.82rem}
+.read-m{display:none; margin-top:6px; color:var(--muted); font-size:.94em; line-height:1.6}
+.read-notes{display:none; margin-top:7px; flex-wrap:wrap; gap:6px}
+.read-line.open .read-m{display:block}
+.read-line.open .read-notes{display:flex}
+.read-note{font-size:.8rem; background:var(--soft); border:1px solid var(--line);
+  border-radius:6px; padding:2px 7px; color:var(--muted)}
+.read-note b{color:var(--fg)}
+.read-gap{height:14px}
 /* RTL 대응: 아랍어·히브리어 등은 첫 글자의 방향을 따라 자동 정렬 (팩 수정 불필요) */
 .w-word,.wb-card-word,.wb-card-ex,.flashcard .big,.flashcard .ex,.blankline,.block{unicode-bidi:plaintext}
 .w-ipa{color:var(--sub); font-size:.85rem}
@@ -254,6 +301,7 @@ a{color:var(--accent)}
       <button class="menu-item" onclick="App.cycleTheme()">🌗 <span id="txMTheme">테마</span> <span class="r" id="themeLabel">시스템</span></button>
       <div class="menu-sep"></div>
       <div class="menu-label" id="txMPacks">언어팩</div>
+      <button class="menu-item" id="txMLibrary" onclick="App.closeMenu(); App.toggleLibrary()">📚 서재 (원서 받기)</button>
       <button class="menu-item" id="txMImport" onclick="App.closeMenu(); document.getElementById('packFile').click()">＋ 언어팩 가져오기 (JSON)</button>
       <div class="menu-sep"></div>
       <div class="menu-version" id="menuVersion">3Ls v0.0</div>
@@ -298,7 +346,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '6.3.1.0';
+  const APP_VERSION = '7.1.0.1';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -331,10 +379,21 @@ const App = (() => {
      언어 선택 화면은 현재 base로 뜻이 있는 target들을 카드로 보여주고,
      한 target에 여러 팩(본과정+확장)이 있으면 카드 ▾ 로 펼친다. base=UI 언어이기도 하다. */
   function curBase(){ return S.base || 'kr'; }
-  // 팩이 지원하는 base 집합 = 단어 m 에 값이 있는 키들 (+명시 p.bases)
-  function packBases(p){ const s=new Set((p&&p.bases)||[]);
-    (p&&p.levels||[]).forEach(L=>(L.words||[]).forEach(w=>{ if(w.m) for(const k in w.m){ if(String(w.m[k]||'').trim()) s.add(k); } }));
-    return s; }
+  // 팩이 지원하는 base 집합 = 단어/읽기줄 m 에 값이 있는 키들 (+명시 p.bases)
+  // 팩 객체당 한 번만 계산해 캐시한다 — 장문 팩(수만 줄)을 매 호출마다 훑으면 목록 화면이 멈춘다.
+  const _basesCache = new WeakMap();
+  function packBases(p){
+    if(!p) return new Set();
+    if(_basesCache.has(p)) return _basesCache.get(p);
+    const s = new Set(p.bases||[]);
+    const addM = m => { if(m) for(const k in m){ if(String(m[k]||'').trim()) s.add(k); } };
+    (p.levels||[]).forEach(L=>{
+      (L.words||[]).forEach(w=>addM(w.m));
+      readDocs(L).forEach(d=>(d.lines||[]).forEach(ln=>addM(ln.m)));
+    });
+    _basesCache.set(p, s);
+    return s;
+  }
   function packWordCount(id, base){ const p=LANGUAGE_PACKS[id]; if(!p) return 0;
     return p.levels.reduce((n,L)=>n+(L.words?(base? L.words.filter(w=>w.m&&String(w.m[base]||'').trim()).length : L.words.length):0),0); }
   function basesAvailable(){ const s=new Set(); Object.values(LANGUAGE_PACKS).forEach(p=>packBases(p).forEach(b=>s.add(b)));
@@ -352,7 +411,8 @@ const App = (() => {
     hanja:{ko:'상공회의소 한자', en:'KCCI Hanja'},
   };
   // 빈 껍데기 언어(levels:[])인지 · 그렇다면 같은 target의 1순위 확장 사전으로 넘긴다
-  function isEmptyPack(p){ return !p || !p.levels || !p.levels.some(L=>L.words && L.words.length); }
+  function isEmptyPack(p){ return !p || !p.levels ||
+    !p.levels.some(L=>(L.words && L.words.length) || readDocs(L).some(d=>(d.lines||[]).length)); }
   function resolvePack(id){
     const p = LANGUAGE_PACKS[id];
     if(p && isEmptyPack(p)){
@@ -382,6 +442,18 @@ const App = (() => {
          mScreen:'화면', mTheme:'테마', mPacks:'언어팩', mImport:'＋ 언어팩 가져오기 (JSON)',
          thSystem:'시스템', thLight:'라이트', thDark:'다크',
          tWords:'📖 단어', tFlash:'🃏 암기카드', tGrammar:'📐 문법', tEx:'✏️ 연습', tQuiz:'🏁 시험',
+         tRead:'📜 읽기', rdShow:'번역 모두 보기', rdHide:'번역 감추기',
+         noRead:'이 레벨에는 읽기 자료가 없습니다.', rdFind:'이 글에서 찾기…',
+         rdSmaller:'글자 작게', rdBigger:'글자 크게',
+         rdAt:'지난번에 {n} 에서 멈췄습니다.', rdResume:'이어서 읽기',
+         rdSrcNote:'이 줄의 주석', rdSrcGloss:'이 글의 용어집', rdNoEntry:'설치된 사전에 없는 낱말입니다.',
+         libTitle:'서재', mLibrary:'📚 서재 (원서 받기)',
+         libHint:'받기를 누른 원서만 기기에 저장됩니다. 앱을 켜는 것만으로는 받지 않고, 한 번 받으면 앱을 업데이트해도 남습니다.',
+         libLoading:'목록을 불러오는 중…', libNone:'서재가 비어 있습니다.',
+         libErr:'목록을 불러오지 못했습니다 — {e}', libBad:'언어팩 스키마가 아닙니다',
+         libNoCache:'이 환경에서는 저장소를 쓸 수 없습니다. http(s):// 로 열면 받기가 켜집니다.',
+         libGet:'⬇ 받기', libGetting:'받는 중…', libRead:'📖 읽기', libDel:'삭제', libHave:'받음',
+         libLines:'{n}줄', rdLines:'{n}줄', libDelAsk:'“{n}” 을(를) 기기에서 지울까요? 서재에서 다시 받을 수 있습니다.',
          thCat:'분류', thWord:'단어', thIpa:'발음', thMean:'뜻', thEx:'예문', thSpeak:'듣기', colFold:'열 접기', tipCol:'💡팁',
          cChoose:'언어 선택…', cContents:'이 언어의 콘텐츠',
          pickHint:'설명 언어(Base)를 고르고, 배울 언어를 선택하세요. 확장 콘텐츠가 있으면 ▾ 로 펼칩니다.',
@@ -426,6 +498,18 @@ const App = (() => {
          mScreen:'Display', mTheme:'Theme', mPacks:'Language pack', mImport:'＋ Import pack (JSON)',
          thSystem:'System', thLight:'Light', thDark:'Dark',
          tWords:'📖 Words', tFlash:'🃏 Flashcards', tGrammar:'📐 Grammar', tEx:'✏️ Practice', tQuiz:'🏁 Test',
+         tRead:'📜 Reading', rdShow:'Show all translations', rdHide:'Hide translations',
+         noRead:'No reading material in this level.', rdFind:'Find in this text…',
+         rdSmaller:'Smaller text', rdBigger:'Larger text',
+         rdAt:'You stopped at {n}.', rdResume:'Resume reading',
+         rdSrcNote:'note on this line', rdSrcGloss:'glossary of this text', rdNoEntry:'Not in any installed dictionary.',
+         libTitle:'Library', mLibrary:'📚 Library (get texts)',
+         libHint:'Only the texts you tap Get on are stored on this device. Opening the app downloads none of them, and what you get survives app updates.',
+         libLoading:'Loading the catalogue…', libNone:'The library is empty.',
+         libErr:'Could not load the catalogue — {e}', libBad:'Not a valid language pack',
+         libNoCache:'Storage is unavailable here. Open the app over http(s):// to enable downloads.',
+         libGet:'⬇ Get', libGetting:'Getting…', libRead:'📖 Read', libDel:'Remove', libHave:'on device',
+         libLines:'{n} lines', rdLines:'{n} lines', libDelAsk:'Remove “{n}” from this device? You can get it again from the library.',
          thCat:'Category', thWord:'Word', thIpa:'IPA', thMean:'Meaning', thEx:'Example', thSpeak:'Audio', colFold:'Columns', tipCol:'💡Tip',
          cChoose:'Choose language…', cContents:'Contents in this language',
          pickHint:'Pick your base language, then the language to learn. Expand ▾ for extra content.',
@@ -547,10 +631,13 @@ const App = (() => {
   /* ── 라우팅 ─────────────────────────────────────── */
   function go(name, arg){
     view = {name, arg}; quiz=null; flash=null; wbState=null; gsState=null;
+    if(name!=='library') libState=null;
+    rdDocIdx=null; rdQuery='';           // 다른 화면으로 나가면 읽기 상태는 저장된 것으로 되돌린다
     render(); window.scrollTo(0,0);
   }
 
   function render(){
+    clearTimeout(rdTimer); clearTimeout(rdTapTimer);  // 화면을 다시 그리면 읽기 탭의 예약도 무효
     const el = $('#app');
     if(view.name==='picker'){ el.innerHTML = pickerView(); return; } // 언어 선택 화면은 활성 팩과 무관
     if(view.name==='search'){ el.innerHTML = searchView(); return; } // 통합검색도 활성 팩과 무관
@@ -559,6 +646,7 @@ const App = (() => {
     else if(view.name==='level') el.innerHTML = levelView(view.arg);
     else if(view.name==='review') el.innerHTML = reviewView();
     else if(view.name==='wordbank') el.innerHTML = wordbankView();
+    else if(view.name==='library') el.innerHTML = libraryView();
     Object.keys(window.__blocks||{}).forEach(paintBlocks); // 블록 문제 초기 페인트
     updateBadge();
   }
@@ -644,17 +732,24 @@ const App = (() => {
         <h3 style="margin-top:2px">${esc(L.title)}</h3>
         <div class="meta">${esc(L.sub || (enBase?'Tap to view words':'눌러서 단어 보기'))}</div>
       </div>`;
+      const rdLines = readDocs(L).reduce((n,d)=>n+(d.lines||[]).length, 0);
+      const meta = (L.words||[]).length
+        ? `${T('words')} ${(L.words||[]).length} · ${T('exercises')} ${exTotal}${best!=null? ` · ${enBase?'best':'시험 최고'} <b>${best}%</b>`:''}`
+        : TF('rdLines',{n: rdLines.toLocaleString()});
       return `<div class="levelcard" onclick="App.go('level',${L.level})">
         <span class="phase-tag">${esc(phaseLabel(L.phase))}</span>
         <div class="lv">LEVEL ${L.level}${L.cefr? ` · ${esc(L.cefr)}`:''}</div>
         <h3>${esc(L.title)}</h3>
-        <div class="meta">${T('words')} ${(L.words||[]).length} · ${T('exercises')} ${exTotal}${best!=null? ` · ${enBase?'best':'시험 최고'} <b>${best}%</b>`:''}</div>
+        <div class="meta">${meta}</div>
         <div class="progressbar"><div style="width:${pct}%"></div></div>
       </div>`;
     }).join('');
     // 과정 소개는 팩의 desc가 우선. 없으면 레벨 수로 일반 문구 생성 (CEFR 등 특정 체계를 가정하지 않음)
     const courseDesc = esc(p.desc || (enBase? `${p.levels.length}-level course` : `레벨 ${p.levels.length}개 과정`));
-    const sub = dict
+    const totalRead = p.levels.reduce((n,L)=>n + readDocs(L).reduce((k,d)=>k+(d.lines||[]).length,0), 0);
+    const sub = (!totalWords && totalRead)
+      ? `${esc(p.desc||'')} · ${TF('rdLines',{n: totalRead.toLocaleString()})}`
+      : dict
       ? `${esc(p.desc||'')} · <b>${totalWords}</b> ${T('words')} · ${enBase?'Tap a category to browse.':'분류를 눌러 단어를 살펴보세요.'}`
       : enBase
         ? `${courseDesc} · <b>${learned}</b>/${totalWords} ${T('words')} in review orbit · all levels open (Library) · tests are optional.`
@@ -672,16 +767,24 @@ const App = (() => {
     const dict = !!pack().dictionary;
     let tab = view.tab || 'words';
     // 사전 팩은 '단어' 탭만 제공 (시험·연습·암기카드 없음)
-    const tabDefs = dict
-      ? [['words',T('tWords')]]
-      : [['words',T('tWords')],['flash',T('tFlash')],['grammar',T('tGrammar')],['ex',T('tEx')],['quiz',T('tQuiz')]];
-    if(!tabDefs.some(([k])=>k===tab)) tab='words';
+    const hasRead = readDocs(L).some(d=>(d.lines||[]).length);
+    const hasWords = !!(L.words||[]).length;
+    const tabDefs = (hasWords? [['words',T('tWords')]] : [])
+      .concat((hasWords && !dict)? [['flash',T('tFlash')]] : [])
+      .concat((L.grammar||[]).length? [['grammar',T('tGrammar')]] : [])
+      .concat(hasRead? [['read',T('tRead')]] : [])
+      .concat((!dict && ((L.exercises||[]).length || (L.quiz||[]).length))
+        ? [['ex',T('tEx')],['quiz',T('tQuiz')]] : []);
+    if(!tabDefs.length) tabDefs.push(['words',T('tWords')]);
+    if(!tabDefs.some(([k])=>k===tab)) tab = tabDefs[0][0];
+    view.tab = tab;   // 스크롤 추적이 '지금 읽기 탭인가'를 이 값으로 판단한다
     const tabs = tabDefs
       .map(([k,label])=>`<button class="${tab===k?'on':''}" onclick="App.tab('${k}')">${label}</button>`).join('');
     let body='';
     if(tab==='words') body = wordsTab(L);
     else if(tab==='flash') body = flashTab(L);
     else if(tab==='grammar') body = grammarTab(L);
+    else if(tab==='read') body = readingTab(L);
     else if(tab==='ex') body = exTab(L);
     else if(tab==='quiz') body = quizTab(L);
     const cefrPill = L.cefr? ` <span class="pill">${esc(L.cefr)}</span>`:'';
@@ -940,6 +1043,249 @@ const App = (() => {
   function flashFlip(){ if(flash){ flash.open=!flash.open; if(flash.open) speak(sayOf(flash.cards[flash.i])); render(); } }
   function flashMark(known){ srsMark(flash.cards[flash.i], known); flash.i++; flash.open=false; render(); }
   function flashRestart(){ flash=null; render(); }
+
+  /* ── 읽기(원문 강독 · 장문) ──────────────────────────
+     레벨에 reading 을 두면 📜 탭이 생긴다. 하나면 객체, 여러 편이면 배열:
+       reading: { title, source, intro, after, gloss:{…}, lines:[…] }
+       reading: [ {id:'gen-1', title:'…', lines:[…]}, {id:'gen-2', …} ]   ← 목차 드롭다운
+     lines 의 각 줄: { n:'1:3'(표지), t:'원문', m:{kr:'번역'},
+                      note:[{w:'낱말', m:'주석'}], say:'발음용', p:true(문단 나눔) }
+     · 번역은 기본으로 감춰 두고 줄을 누르면 펼친다. 상단 버튼으로 전체 토글.
+     · 낱말을 더블클릭하면 뜻 풍선이 뜬다(줄 주석 → 글 용어집 → 설치된 사전 순).
+     · 읽던 위치·글자 크기는 기기에 저장돼 다음에 그 자리에서 이어진다. */
+  function readDocs(L){
+    const r = L && L.reading;
+    if(!r) return [];
+    return Array.isArray(r) ? r : [r];
+  }
+  let readShow = localStorage.getItem('3ls.readShow')==='1';
+  let rdFont   = parseFloat(localStorage.getItem('3ls.rdFont')) || 1;
+  let rdDocIdx = null;      // 지금 보고 있는 편(장) — null이면 저장된 마지막 편
+  let rdQuery  = '';        // 이 글 안에서만 쓰는 검색어 (통합검색과 무관)
+  let rdPending = null;     // 렌더 직후 스크롤할 줄 번호
+
+  // 읽던 위치: 레벨당 키 하나에 { <편 번호>: <줄 번호>, _last: <편 번호> }
+  function rdKey(L){ return '3ls.rd.' + S.activeLang + '.' + (L.level != null ? L.level : 0); }
+  function rdPos(L){ try{ return JSON.parse(localStorage.getItem(rdKey(L))||'{}'); }catch(e){ return {}; } }
+  function rdSavePos(L, d, i){
+    const o = rdPos(L); o[d] = i; o._last = d;
+    localStorage.setItem(rdKey(L), JSON.stringify(o));
+  }
+  function rdCurDoc(L){
+    const docs = readDocs(L);
+    if(rdDocIdx!=null && docs[rdDocIdx]) return rdDocIdx;
+    const last = rdPos(L)._last;
+    return (last!=null && docs[last]) ? Number(last) : 0;
+  }
+  // 지금 화면의 레벨 객체 (읽기 도구들이 공통으로 쓴다)
+  function rdLevel(){ return pack() && pack().levels.find(x=>x.level===view.arg); }
+
+  function readingTab(L){
+    const docs = readDocs(L);
+    if(!docs.length) return `<div class="empty">${T('noRead')}</div>`;
+    const d = rdCurDoc(L), R = docs[d] || {}, lines = R.lines || [];
+    const tts = pack().tts, pos = rdPos(L), saved = pos[d];
+
+    const toc = docs.length>1 ? `<select class="read-toc" onchange="App.rdDoc(this.value)">` +
+      docs.map((x,i)=>{
+        const tot = (x.lines||[]).length, at = pos[i];
+        const pct = (at!=null && tot) ? ` — ${Math.round((at+1)/tot*100)}%` : '';
+        return `<option value="${i}" ${i===d?'selected':''}>${esc(x.title||('#'+(i+1)))}${pct}</option>`;
+      }).join('') + `</select>` : '';
+
+    const head = `<div class="read-head">
+        <div>
+          <h3 class="read-title">${esc(R.title||'')}</h3>
+          ${R.source? `<div class="read-src">${esc(R.source)}</div>`:''}
+        </div>
+        <button class="wb-chip ${readShow?'on':''}" onclick="App.toggleRead()">${readShow?T('rdHide'):T('rdShow')}</button>
+      </div>
+      <div class="read-bar">${toc}
+        <input type="search" class="read-find" id="rdFind" placeholder="${esc(T('rdFind'))}"
+               value="${esc(rdQuery)}" oninput="App.rdSearch(this.value)">
+        <span class="read-size">
+          <button onclick="App.rdZoom(-1)" title="${esc(T('rdSmaller'))}">A−</button>
+          <button onclick="App.rdZoom(1)" title="${esc(T('rdBigger'))}">A＋</button>
+        </span>
+      </div>`;
+
+    // 이어읽기: 저장된 위치가 첫 줄이 아닐 때만 띄운다
+    const mark = (lines[saved] && lines[saved].n) || (saved+1);
+    const resume = (saved!=null && saved>0) ? `<div class="read-resume">
+        <span>${TF('rdAt',{n: esc(String(mark))})}</span>
+        <button class="wb-chip on" onclick="App.rdJump(${saved})">${T('rdResume')}</button>
+      </div>` : '';
+
+    const intro = R.intro? `<div class="hint" style="margin-bottom:14px">${R.intro}</div>` : '';
+    const body = lines.map((ln,i)=>{
+      const tr = meaningOf(ln);           // m:{kr:…} 를 현재 base로
+      const notes = (ln.note||[]).map(n=>`<span class="read-note"><b>${esc(n.w)}</b> ${esc(n.m)}</span>`).join('');
+      const say = ln.say || ln.t;
+      return `${ln.p?'<div class="read-gap"></div>':''}
+        <div class="read-line ${readShow?'open':''}" data-i="${i}" onclick="App.rdTapLine(this)">
+          <div class="read-t">${ln.n? `<span class="read-n">${esc(ln.n)}</span>`:''}${esc(ln.t)}${(tts&&ln.t)?`<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(say)}')" title="${esc(T('ttSpeakW'))}">🔊</button>`:''}</div>
+          ${tr? `<div class="read-m">${esc(tr)}</div>`:''}
+          ${notes? `<div class="read-notes">${notes}</div>`:''}
+        </div>`;
+    }).join('');
+    const after = R.after? `<div class="grammarbox" style="margin-top:16px">${R.after}</div>` : '';
+    return `<div class="card">${head}${resume}<div class="read-hits" id="rdHits" hidden></div>${intro}
+      <div class="read-body" id="rdBody" style="font-size:${rdFont}rem"
+           ondblclick="App.rdLookup(event)">${body}</div>${after}</div>`;
+  }
+
+  function toggleRead(){
+    readShow = !readShow;
+    localStorage.setItem('3ls.readShow', readShow?'1':'0');
+    render();
+  }
+  /* 줄 한 번 클릭 = 번역 펼치기. 다만 더블클릭(낱말 조회) 앞에도 click 이 두 번
+     먼저 오므로, 그대로 토글하면 번역이 열렸다 닫히며 깜박인다.
+     잠긐 미뤄 두었다가 더블클릭이 오면 취소한다. */
+  let rdTapTimer = null;
+  function rdTapLine(el){
+    clearTimeout(rdTapTimer);
+    rdTapTimer = setTimeout(()=>el.classList.toggle('open'), 220);
+  }
+  function rdDoc(i){ rdDocIdx = Number(i); rdQuery=''; render(); window.scrollTo(0,0); }
+  function rdZoom(dir){
+    rdFont = Math.min(1.8, Math.max(.8, Math.round((rdFont + dir*.1)*10)/10));
+    localStorage.setItem('3ls.rdFont', String(rdFont));
+    const b = $('#rdBody'); if(b) b.style.fontSize = rdFont+'rem';
+  }
+  // 특정 줄로 스크롤 + 잠깐 강조
+  function rdJump(i){
+    const el = document.querySelector('.read-line[data-i="'+i+'"]');
+    if(!el) return;
+    el.scrollIntoView({block:'center'});
+    requestAnimationFrame(()=>el.scrollIntoView({block:'center'}));
+    el.classList.add('hit');
+    setTimeout(()=>el.classList.remove('hit'), 1200);
+  }
+
+  /* 이 글 안에서만 찾기 — 통합검색 인덱스(gsIndex)와 완전히 분리돼 단어 결과와 안 섞인다.
+     장문이라도 lines 배열을 한 번 훑는 것이라 인덱스가 필요 없다(3,000줄에 1ms 미만). */
+  let rdTimer = null;
+  function rdSearch(v){
+    rdQuery = v;
+    clearTimeout(rdTimer);
+    rdTimer = setTimeout(()=>{
+      const box = $('#rdHits'), L = rdLevel();
+      if(!box || !L) return;
+      const doc = readDocs(L)[rdCurDoc(L)] || {}, lines = doc.lines||[];
+      const q = norm(v).trim();
+      if(!q){ box.hidden = true; box.innerHTML=''; return; }
+      const hits = [];
+      for(let i=0;i<lines.length && hits.length<100;i++){
+        const ln = lines[i];
+        const hay = norm((ln.n||'') + ' ' + (ln.t||'') + ' ' + (meaningOf(ln)||''));
+        if(hay.includes(q)) hits.push({i, ln});
+      }
+      box.hidden = false;
+      box.innerHTML = hits.length
+        ? hits.map(({i,ln})=>`<div class="read-hit" onclick="App.rdJump(${i})">
+            ${ln.n? `<b>${esc(ln.n)}</b> `:''}${esc(String(ln.t||'').slice(0,110))}</div>`).join('')
+        : `<div class="read-hit" style="cursor:default">${T('noResult')}</div>`;
+    }, 120);
+  }
+
+  /* 낱말 뜻 풍선 — 낱말마다 <span>을 감싸면 장문에서 노드가 수만 개가 된다.
+     더블클릭이면 브라우저가 알아서 낱말을 선택하므로 selection만 읽으면 DOM 추가가 0.
+     한 번 클릭(번역 펼치기)과도 안 겹친다. */
+  function rdNorm(s){
+    return String(s||'').toLowerCase().normalize('NFD')
+      .replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]/gu,'');
+  }
+  let rdLexMap = null, rdLexSize = -1;
+  function rdLex(){
+    const n = Object.keys(LANGUAGE_PACKS).length;
+    if(rdLexMap && rdLexSize===n) return rdLexMap;
+    const m = new Map();
+    Object.values(LANGUAGE_PACKS).forEach(p=>(p.levels||[]).forEach(L=>(L.words||[]).forEach(w=>{
+      const k = rdNorm(w.w); if(k && !m.has(k)) m.set(k, {w, p});
+    })));
+    rdLexMap = m; rdLexSize = n;
+    return m;
+  }
+  function rdLookup(ev){
+    clearTimeout(rdTapTimer);          // 더블클릭이니 줄 토글은 취소
+    const sel = window.getSelection();
+    const raw = sel ? String(sel).trim() : '';
+    rdClosePop();
+    const key = rdNorm(raw);
+    if(!key || key.length>40) return;
+
+    const L = rdLevel(); if(!L) return;
+    const doc = readDocs(L)[rdCurDoc(L)] || {};
+    const lineEl = ev.target.closest ? ev.target.closest('.read-line') : null;
+    const ln = lineEl ? (doc.lines||[])[Number(lineEl.dataset.i)] : null;
+
+    let m = '', src = '';
+    // ① 그 줄에 저자가 직접 단 주석이 가장 정확하다
+    const note = ln && (ln.note||[]).find(x=>rdNorm(x.w)===key);
+    if(note){ m = note.m; src = T('rdSrcNote'); }
+    // ② 용어집 — 굴절형까지 담는 자리. 편별 gloss 가 먼저, 없으면 팩 전체 gloss.
+    for(const g of [doc.gloss, pack().gloss]){
+      if(m || !g) continue;
+      for(const k in g){ if(rdNorm(k)===key){ m = g[k]; src = T('rdSrcGloss'); break; } }
+    }
+    // ③ 설치된 사전의 표제어 정확 일치 — 굴절형은 여기서 안 잡힌다(지어내지 않는다)
+    let hitW = null, hitP = null;
+    if(!m){
+      const e = rdLex().get(key);
+      if(e){
+        hitW = e.w; hitP = e.p;
+        m = meaningOf(e.w) || (e.w.m && Object.values(e.w.m).find(v=>String(v||'').trim())) || '';
+        src = gsPackLabel(e.p);
+      }
+    }
+    const say = hitW ? sayOf(hitW) : raw;
+    // 찾은 낱말이 다른 팩에서 왔으면 그 팩의 로케일로 읽는다(통합검색과 같은 방식)
+    const sayTts = (hitP && hitP.tts) || pack().tts;
+    const pop = document.createElement('div');
+    pop.className = 'rd-pop'; pop.id = 'rdPop';
+    pop.innerHTML = `<div class="rp-w">${esc(raw)}</div>
+      ${src? `<div class="rp-src">${esc(src)}</div>`:''}
+      <div class="rp-m">${m? esc(m) : `<span class="sub">${T('rdNoEntry')}</span>`}</div>
+      <div class="rp-act">
+        ${sayTts? `<button onclick="App.speak('${jattr(say)}','${jattr(sayTts)}')">🔊</button>`:''}
+        <button onclick="App.rdToSearch('${jattr(raw)}')">🔎 ${T('gsTitle')}</button>
+      </div>`;
+    document.body.appendChild(pop);
+    // 선택 영역 근처에 띄우되 화면 밖으로 나가지 않게 민다
+    let x = ev.clientX, y = ev.clientY;
+    try{ const r = sel.getRangeAt(0).getBoundingClientRect(); if(r && r.width){ x = r.left; y = r.bottom; } }catch(e){}
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.max(8, Math.min(x, innerWidth - w - 8)) + 'px';
+    pop.style.top  = (y + h + 12 > innerHeight ? Math.max(8, y - h - 10) : y + 8) + 'px';
+    setTimeout(()=>document.addEventListener('pointerdown', function away(e){
+      if(e.target.closest && e.target.closest('.rd-pop')){        // 팝업 안이면 그대로 두고
+        document.addEventListener('pointerdown', away, {once:true});  // 다음 바깥 클릭을 다시 기다린다
+        return;
+      }
+      rdClosePop();
+    }, {once:true}), 0);
+  }
+  function rdClosePop(){ const e = document.getElementById('rdPop'); if(e) e.remove(); }
+  function rdToSearch(q){ rdClosePop(); go('search'); gsState = {q}; render(); }
+
+  /* 읽던 위치 저장: 화면 맨 위에 걸린 줄을 기록한다. 스크롤마다 하면 비싸니 디바운스. */
+  let rdScrollTimer = null;
+  function rdTrackScroll(){
+    if(view.name!=='level' || view.tab!=='read') return;
+    clearTimeout(rdScrollTimer);
+    rdScrollTimer = setTimeout(()=>{
+      const els = document.querySelectorAll('.read-line');
+      if(!els.length) return;
+      let top = -1;
+      for(const el of els){ if(el.getBoundingClientRect().bottom > 90){ top = Number(el.dataset.i)||0; break; } }
+      // 맺음말까지 내려가 모든 줄이 화면 위로 지나간 경우 — 마지막 줄로 본다.
+      // 0 으로 두면 다 읽고 나갈 때마다 저장된 위치가 지워진다.
+      if(top < 0) top = (scrollY + innerHeight >= document.body.scrollHeight - 40) ? els.length-1 : -1;
+      const L = rdLevel();
+      if(L && top >= 0) rdSavePos(L, rdCurDoc(L), top);
+    }, 400);
+  }
 
   function grammarTab(L){
     if(!(L.grammar||[]).length) return `<div class="empty">${T('noGrammar')}</div>`;
@@ -1255,6 +1601,135 @@ const App = (() => {
     r.readAsText(f); input.value='';
   }
 
+  /* ── 서재: 원서 파일 선택 다운로드 ──────────────────────
+     library/index.json 의 목록만 먼저 읽고, [받기]를 누른 문서만 내려받는다.
+     앱을 켜는 것만으로는 원서를 한 바이트도 받지 않는다 — service-worker.js 의
+     APP_SHELL 에 library/ 를 넣지 않았기 때문이다.
+     받은 파일은 버전이 안 붙은 '3ls-library' 캐시에 넣어 앱을 업데이트해도 살아남는다
+     (버전 캐시에 두면 activate 가 옛 캐시를 지울 때 같이 날아간다).
+     받은 문서는 그냥 언어팩이므로 목차·읽기·검색 등 나머지 기능은 그대로 쓴다. */
+  const LIB_CACHE = '3ls-library';
+  const LIB_KEY   = '3ls.lib';        // { <팩 id>: <내려받은 URL> }
+  let libState = null;                // { list, err, busy }
+
+  function libMap(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||'{}'); }catch(e){ return {}; } }
+  function libSetMap(o){ localStorage.setItem(LIB_KEY, JSON.stringify(o)); }
+  function libUrl(d){ return d.url || ('library/' + d.file); }   // 같은 저장소가 기본, 절대 URL도 허용
+  function libOK(){ return typeof caches !== 'undefined'; }      // file:// 에는 Cache Storage 가 없다
+
+  // 부팅: 받아둔 원서를 캐시에서 되살린다 (네트워크 없이도 열린다)
+  async function libRestore(){
+    if(!libOK()) return false;
+    const map = libMap(), ids = Object.keys(map);
+    if(!ids.length) return false;
+    let n = 0;
+    try{
+      const c = await caches.open(LIB_CACHE);
+      for(const id of ids){
+        try{
+          const res = await c.match(map[id]);
+          if(!res) continue;
+          registerLanguagePack(await res.json());
+          if(LANGUAGE_PACKS[id]) n++;
+        }catch(e){ console.warn('[서재] 복원 실패:', id, e); }
+      }
+    }catch(e){ console.warn('[서재] 캐시 열기 실패', e); }
+    return n > 0;
+  }
+
+  async function libLoad(){
+    try{
+      const res = await fetch('library/index.json', {cache:'no-cache'});
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      if(!libState) return;                       // 불러오는 사이 화면을 나갔다
+      libState.list = j.docs || [];
+    }catch(e){
+      if(!libState) return;
+      libState.err = e.message; libState.list = [];
+    }
+    render();
+  }
+
+  function libraryView(){
+    if(!libState){ libState = {list:null, err:null, busy:null}; libLoad(); }
+    const map = libMap();
+    const head = `<h1>📚 ${T('libTitle')}</h1>
+      <p class="sub" style="margin-bottom:16px">${T('libHint')}</p>`;
+    if(!libOK()) return head + `<div class="card"><div class="empty">${T('libNoCache')}</div></div>`;
+    if(libState.list === null) return head + `<div class="card"><div class="empty">${T('libLoading')}</div></div>`;
+    if(libState.err && !libState.list.length)
+      return head + `<div class="card"><div class="empty">${TF('libErr',{e:esc(libState.err)})}</div></div>`;
+    if(!libState.list.length) return head + `<div class="card"><div class="empty">${T('libNone')}</div></div>`;
+
+    const rows = libState.list.map((d,i)=>{
+      const have = !!map[d.id], busy = libState.busy===d.id;
+      const meta = [ d.lines? TF('libLines',{n:Number(d.lines).toLocaleString()}) : '', d.size||'' ]
+        .filter(Boolean).join(' · ');
+      const btn = busy
+        ? `<button class="btn" disabled>${T('libGetting')}</button>`
+        : have
+          ? `<button class="btn primary" onclick="App.libOpen('${jattr(d.id)}')">${T('libRead')}</button>
+             <button class="btn" onclick="App.libDel('${jattr(d.id)}')">${T('libDel')}</button>`
+          : `<button class="btn primary" onclick="App.libGet(${i})">${T('libGet')}</button>`;
+      return `<div class="card" style="margin-bottom:12px">
+        <div class="read-head">
+          <div>
+            <h3 class="read-title">${esc(d.name||d.id)} ${have? `<span class="pill">${T('libHave')}</span>`:''}</h3>
+            ${meta? `<div class="read-src">${esc(meta)}</div>`:''}
+          </div>
+        </div>
+        ${d.desc? `<p class="sub" style="margin:8px 0 12px">${esc(d.desc)}</p>`:''}
+        <div class="flashbtns" style="justify-content:flex-start">${btn}</div>
+      </div>`;
+    }).join('');
+    const err = libState.err? `<div class="hint" style="margin-bottom:12px">${TF('libErr',{e:esc(libState.err)})}</div>`:'';
+    return head + err + rows;
+  }
+
+  async function libGet(i){
+    const d = libState && libState.list && libState.list[i]; if(!d) return;
+    libState.busy = d.id; libState.err = null; render();
+    const url = libUrl(d);
+    try{
+      const res = await fetch(url, {cache:'no-cache'});
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      // 스키마 확인을 먼저 — 깨진 파일을 캐시에 넣어두면 다음 부팅마다 실패한다
+      const pk = JSON.parse(text);
+      registerLanguagePack(pk);
+      if(!LANGUAGE_PACKS[pk.id]) throw new Error(T('libBad'));
+      await (await caches.open(LIB_CACHE))
+        .put(url, new Response(text, {headers:{'Content-Type':'application/json'}}));
+      const map = libMap(); map[pk.id] = url; libSetMap(map);
+      if(libState) libState.busy = null;
+      applyI18n(); renderContentsMenu(); render();
+    }catch(e){
+      if(libState){ libState.busy = null; libState.err = e.message; }
+      render();
+    }
+  }
+
+  async function libDel(id){
+    const map = libMap(), url = map[id];
+    if(!url) return;
+    const nm = (LANGUAGE_PACKS[id]||{}).name || id;
+    if(!confirm(TF('libDelAsk',{n:nm}))) return;
+    try{ (await caches.open(LIB_CACHE)).delete(url); }catch(e){}
+    delete map[id]; libSetMap(map);
+    delete LANGUAGE_PACKS[id];
+    if(S.activeLang===id){          // 지금 읽던 책을 지웠으면 남은 팩으로 옮긴다
+      const t = targetsForBase(curBase())[0];
+      S.activeLang = t ? mainPackOf(t).id : Object.keys(LANGUAGE_PACKS)[0];
+      S.activeLang = resolvePack(S.activeLang);
+      save();
+    }
+    applyI18n(); renderContentsMenu(); render();
+  }
+
+  function libOpen(id){ switchLang(id); }
+  function toggleLibrary(){ go(view.name==='library' ? 'home' : 'library'); }
+
   /* ── 테마 (시스템/라이트/다크 수동 전환) ────────── */
   const THEME_KEY = '3ls.theme';
   function currentTheme(){ return localStorage.getItem(THEME_KEY) || 'system'; }
@@ -1308,7 +1783,7 @@ const App = (() => {
     setTx('txSearch', ' '+T('search'));
     setTx('txRemind', ' '+T('remind')); setTx('txMenu', ' '+T('menu'));
     setTx('txMScreen', T('mScreen')); setTx('txMTheme', T('mTheme'));
-    setTx('txMPacks', T('mPacks')); setTx('txMImport', T('mImport'));
+    setTx('txMPacks', T('mPacks')); setTx('txMImport', T('mImport')); setTx('txMLibrary', T('mLibrary'));
     // 헤더 버튼 툴팁(title)도 base 언어로
     const tip=(id,k)=>{ const el=document.getElementById(id); if(el) el.title=T(k); };
     tip('contentsBtn','ttContents'); tip('menuBtn','ttMenu');
@@ -1340,15 +1815,27 @@ const App = (() => {
     }catch(e){}
     // 활성 팩·base 정합성 맞추기 (저장값이 옛 id면 첫 팩으로)
     if(!S.base || !basesAvailable().includes(S.base)) S.base = basesAvailable()[0] || 'kr';
-    if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]){
-      const t = targetsForBase(curBase())[0];
-      S.activeLang = t ? mainPackOf(t).id : Object.keys(LANGUAGE_PACKS)[0];
+    // 활성 팩을 정하는 순서 — 둘 때 쓴다(서재 복원 전/후)
+    function settleActive(){
+      if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]){
+        const t = targetsForBase(curBase())[0];
+        S.activeLang = t ? mainPackOf(t).id : Object.keys(LANGUAGE_PACKS)[0];
+      }
+      S.activeLang = resolvePack(S.activeLang);  // 저장값이 빈 껍데기면 확장 사전으로
+      // 활성 팩이 현재 base를 지원하지 않으면 지원하는 base로(kr 우선)
+      const ap = LANGUAGE_PACKS[S.activeLang];
+      if(ap && !packBases(ap).has(curBase())){ const bs=[...packBases(ap)]; if(bs.length) S.base = bs.includes('kr')?'kr':bs[0]; }
     }
-    S.activeLang = resolvePack(S.activeLang);  // 저장값이 빈 껍데기면 확장 사전으로
-    // 활성 팩이 현재 base를 지원하지 않으면 지원하는 base로(kr 우선)
-    const ap = LANGUAGE_PACKS[S.activeLang];
-    if(ap && !packBases(ap).has(curBase())){ const bs=[...packBases(ap)]; if(bs.length) S.base = bs.includes('kr')?'kr':bs[0]; }
-    applyI18n(); renderContentsMenu(); render();
+    // 마지막으로 보던 게 서재에서 받은 원서라면 libRestore() 가 끝나야 등록된다.
+    // 그 전에 폴백을 돌리면 id 를 뺏기고, 다음 save() 가 잘못된 id 를 굳혀 버린다.
+    const pendingLib = !!(S.activeLang && !LANGUAGE_PACKS[S.activeLang] && (S.activeLang in libMap()));
+    addEventListener('scroll', rdTrackScroll, {passive:true});   // 읽던 위치 기억
+    if(!pendingLib){ settleActive(); applyI18n(); renderContentsMenu(); render(); }
+    // 서재에서 받아둔 원서 복원 — 비동기라 첫 화면을 막지 않고, 끝나면 다시 그린다
+    libRestore().then(ok=>{
+      if(pendingLib) settleActive();      // 복원이 실패했으면 여기서 폴백
+      if(ok || pendingLib){ applyI18n(); renderContentsMenu(); render(); }
+    });
   }
 
   return {init, go, tab, speak, switchLang, setBase, importPack,
@@ -1357,6 +1844,8 @@ const App = (() => {
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
     toggleSearch, gsSetQuery, gsGoTo,
+    toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine,
+    toggleLibrary, libGet, libDel, libOpen,
     cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, togglePick};
 })();
 </script>
@@ -1381,6 +1870,7 @@ const App = (() => {
 <script src="languages/jlpt-n3.js"></script>
 <script src="languages/jlpt-n1.js"></script>
 <script src="languages/jlpt-n1-vocab.js"></script>
+<script src="languages/la.js"></script>
 
 <script>window.addEventListener('DOMContentLoaded', () => App.init());</script>
 
