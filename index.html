@@ -346,7 +346,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '7.1.0.1';
+  const APP_VERSION = '7.1.1.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -447,6 +447,7 @@ const App = (() => {
          rdSmaller:'글자 작게', rdBigger:'글자 크게',
          rdAt:'지난번에 {n} 에서 멈췄습니다.', rdResume:'이어서 읽기',
          rdSrcNote:'이 줄의 주석', rdSrcGloss:'이 글의 용어집', rdNoEntry:'설치된 사전에 없는 낱말입니다.',
+         rdAdd:'＋ 복습', rdAdded:'✓ 담음', rdFind2:'검색', rdFromRead:'읽기',
          libTitle:'서재', mLibrary:'📚 서재 (원서 받기)',
          libHint:'받기를 누른 원서만 기기에 저장됩니다. 앱을 켜는 것만으로는 받지 않고, 한 번 받으면 앱을 업데이트해도 남습니다.',
          libLoading:'목록을 불러오는 중…', libNone:'서재가 비어 있습니다.',
@@ -503,6 +504,7 @@ const App = (() => {
          rdSmaller:'Smaller text', rdBigger:'Larger text',
          rdAt:'You stopped at {n}.', rdResume:'Resume reading',
          rdSrcNote:'note on this line', rdSrcGloss:'glossary of this text', rdNoEntry:'Not in any installed dictionary.',
+         rdAdd:'＋ Review', rdAdded:'✓ Added', rdFind2:'Search', rdFromRead:'reading',
          libTitle:'Library', mLibrary:'📚 Library (get texts)',
          libHint:'Only the texts you tap Get on are stored on this device. Opening the app downloads none of them, and what you get survives app updates.',
          libLoading:'Loading the catalogue…', libNone:'The library is empty.',
@@ -619,9 +621,13 @@ const App = (() => {
     cur.due = Date.now() + SRS_DAYS[cur.box]*DAY;
     st.srs[key] = cur; save(); updateBadge();
   }
+  /* 읽기에서 담은 낱말. 팩의 커리큘럼 단어가 아니므로 allWords() 와 분리해 둔다
+     (홈·단어은행의 "단어 N개" 표시가 읽기 낱말로 부풀지 않게). 복습에만 합류한다. */
+  function savedWords(){ return langState().saved || []; }
   function dueWords(){
     const st = langState(), now = Date.now();
-    return allWords().filter(w=>{ const v = srsGet(st, w); return v && v.due<=now; });
+    return allWords().concat(savedWords())
+      .filter(w=>{ const v = srsGet(st, w); return v && v.due<=now; });
   }
   function updateBadge(){
     const n = dueWords().length, b = $('#reviewBadge');
@@ -1249,7 +1255,8 @@ const App = (() => {
       <div class="rp-m">${m? esc(m) : `<span class="sub">${T('rdNoEntry')}</span>`}</div>
       <div class="rp-act">
         ${sayTts? `<button onclick="App.speak('${jattr(say)}','${jattr(sayTts)}')">🔊</button>`:''}
-        <button onclick="App.rdToSearch('${jattr(raw)}')">🔎 ${T('gsTitle')}</button>
+        ${m? `<button ${rdIsSaved(raw)?'disabled':''} onclick="App.rdSave('${jattr(raw)}','${jattr(m)}','${jattr(say)}',this)">${rdIsSaved(raw)? T('rdAdded') : T('rdAdd')}</button>`:''}
+        <button onclick="App.rdToSearch('${jattr(raw)}')">🔎 ${T('rdFind2')}</button>
       </div>`;
     document.body.appendChild(pop);
     // 선택 영역 근처에 띄우되 화면 밖으로 나가지 않게 민다
@@ -1267,6 +1274,24 @@ const App = (() => {
     }, {once:true}), 0);
   }
   function rdClosePop(){ const e = document.getElementById('rdPop'); if(e) e.remove(); }
+  /* 읽다가 만난 낱말을 이 팩의 복습에 담는다. 뜻은 팝업이 찾아낸 것을 그대로 쓴다
+     — 줄 주석이든 글 용어집이든 다른 팩 사전이든, 화면에 보여준 것과 같아야 하므로. */
+  function rdSavedId(word){ return 'RD|' + rdNorm(word); }
+  function rdIsSaved(word){
+    const id = rdSavedId(word);
+    return (langState().saved || []).some(x => x.id === id);
+  }
+  function rdSave(word, meaning, sayStr, btn){
+    const st = langState();
+    st.saved = st.saved || [];
+    const id = rdSavedId(word);
+    if(!st.saved.some(x => x.id === id)){
+      st.saved.push({id, w:word, m:{[curBase()]: meaning}, say: sayStr || word, pos:T('rdFromRead')});
+      save();
+    }
+    srsMark({id}, false);        // box 0 = 오늘부터 복습 대상
+    if(btn){ btn.textContent = T('rdAdded'); btn.disabled = true; }
+  }
   function rdToSearch(q){ rdClosePop(); go('search'); gsState = {q}; render(); }
 
   /* 읽던 위치 저장: 화면 맨 위에 걸린 줄을 기록한다. 스크롤마다 하면 비싸니 디바운스. */
@@ -1844,7 +1869,7 @@ const App = (() => {
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
     toggleSearch, gsSetQuery, gsGoTo,
-    toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine,
+    toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine, rdSave,
     toggleLibrary, libGet, libDel, libOpen,
     cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, togglePick};
 })();
