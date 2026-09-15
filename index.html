@@ -130,15 +130,28 @@ h2{font-size:1.15rem; margin-bottom:10px}
 .read-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px}
 .read-title{margin:0; font-size:1.15rem}
 .read-src{font-size:.82rem; color:var(--muted); margin-top:3px}
-.read-body{border-top:1px solid var(--line)}
-.read-line{padding:10px 4px; border-bottom:1px solid var(--line); cursor:pointer;
-           content-visibility:auto; contain-intrinsic-size:auto 52px}
+.read-body{border-block-start:1px solid var(--line); font-size:1rem}
+.read-line{padding-block:10px; padding-inline:4px; border-block-end:1px solid var(--line);
+           cursor:pointer; content-visibility:auto; contain-intrinsic-size:auto 52px}
 .read-line:hover{background:var(--soft)}
-.read-body{font-size:1rem}
 .read-t{font-size:1.05em; line-height:1.7}
-.read-t .speak{margin-left:6px; vertical-align:middle}
-.read-n{display:inline-block; min-width:2.6em; margin-right:8px; color:var(--muted);
+.read-t .speak{margin-inline-start:6px; vertical-align:middle}
+.read-n{display:inline-block; min-inline-size:2.6em; margin-inline-end:8px; color:var(--muted);
         font-size:.72em; font-variant-numeric:tabular-nums; vertical-align:baseline; user-select:none}
+/* 세로쓰기(縦書き) — 한중일 고전을 인쇄된 모양대로 읽기 위한 모드.
+   위에서 아래로 흐르고 단이 오른쪽에서 왼쪽으로 쌓인다. 그래서 스크롤이 가로가 되고,
+   본문이 페이지가 아니라 제 몸통 안에서 넘어간다. */
+/* ⚠️ 세로쓰기에서는 block 축이 가로다. 높이를 잡으려면 반드시 물리 속성 height 를 써야 한다
+   — block-size 를 쓰면 폭이 잡혀 본문이 아래로 쌓이기만 한다. */
+.read-body.vert{writing-mode:vertical-rl; height:70vh; min-height:340px;
+                width:100%; max-width:100%; box-sizing:border-box;
+                overflow-x:auto; overflow-y:hidden; padding-block-end:6px}
+/* 두 자리 숫자는 뉘지 않고 나란히 세운다(縦中横) — 일본어 조판의 관례 */
+.read-body.vert .read-n.n2{text-combine-upright:all}
+/* ⚠️ `digits 2` 는 Chrome 이 구현하지 않았다. `all` 만 먹히므로
+   표지가 두 자 이하일 때만(.n2) 붙인다 — 1:31 같은 긴 표지를 뭉개지 않게. */
+.read-body.vert .read-line{max-block-size:none}
+.read-body.vert .read-m, .read-body.vert .read-notes{max-block-size:26em}
 .read-line.hit{background:#ffe9a8; transition:background .5s}
 html[data-theme=dark] .read-line.hit{background:#4a3f18}
 .read-bar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:10px 0 12px}
@@ -165,14 +178,14 @@ html[data-theme=dark] .read-line.hit{background:#4a3f18}
 .rd-pop .rp-act{display:flex; gap:6px; margin-top:9px}
 .rd-pop .rp-act button{flex:1; padding:5px 8px; border:1px solid var(--line); border-radius:8px;
                        background:var(--soft); color:var(--fg); cursor:pointer; font-size:.82rem}
-.read-m{display:none; margin-top:6px; color:var(--muted); font-size:.94em; line-height:1.6}
-.read-notes{display:none; margin-top:7px; flex-wrap:wrap; gap:6px}
+.read-m{display:none; margin-block-start:6px; color:var(--muted); font-size:.94em; line-height:1.6}
+.read-notes{display:none; margin-block-start:7px; flex-wrap:wrap; gap:6px}
 .read-line.open .read-m{display:block}
 .read-line.open .read-notes{display:flex}
 .read-note{font-size:.8rem; background:var(--soft); border:1px solid var(--line);
   border-radius:6px; padding:2px 7px; color:var(--muted)}
 .read-note b{color:var(--fg)}
-.read-gap{height:14px}
+.read-gap{block-size:14px}
 /* RTL 대응: 아랍어·히브리어 등은 첫 글자의 방향을 따라 자동 정렬 (팩 수정 불필요) */
 .w-word,.wb-card-word,.wb-card-ex,.flashcard .big,.flashcard .ex,.blankline,.block{unicode-bidi:plaintext}
 .w-ipa{color:var(--sub); font-size:.85rem}
@@ -346,7 +359,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '7.1.1.0';
+  const APP_VERSION = '7.1.2.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -448,6 +461,7 @@ const App = (() => {
          rdAt:'지난번에 {n} 에서 멈췄습니다.', rdResume:'이어서 읽기',
          rdSrcNote:'이 줄의 주석', rdSrcGloss:'이 글의 용어집', rdNoEntry:'설치된 사전에 없는 낱말입니다.',
          rdAdd:'＋ 복습', rdAdded:'✓ 담음', rdFind2:'검색', rdFromRead:'읽기',
+         rdVert:'세로쓰기', rdHoriz:'가로쓰기',
          libTitle:'서재', mLibrary:'📚 서재 (원서 받기)',
          libHint:'받기를 누른 원서만 기기에 저장됩니다. 앱을 켜는 것만으로는 받지 않고, 한 번 받으면 앱을 업데이트해도 남습니다.',
          libLoading:'목록을 불러오는 중…', libNone:'서재가 비어 있습니다.',
@@ -505,6 +519,7 @@ const App = (() => {
          rdAt:'You stopped at {n}.', rdResume:'Resume reading',
          rdSrcNote:'note on this line', rdSrcGloss:'glossary of this text', rdNoEntry:'Not in any installed dictionary.',
          rdAdd:'＋ Review', rdAdded:'✓ Added', rdFind2:'Search', rdFromRead:'reading',
+         rdVert:'Vertical', rdHoriz:'Horizontal',
          libTitle:'Library', mLibrary:'📚 Library (get texts)',
          libHint:'Only the texts you tap Get on are stored on this device. Opening the app downloads none of them, and what you get survives app updates.',
          libLoading:'Loading the catalogue…', libNone:'The library is empty.',
@@ -1066,6 +1081,7 @@ const App = (() => {
   }
   let readShow = localStorage.getItem('3ls.readShow')==='1';
   let rdFont   = parseFloat(localStorage.getItem('3ls.rdFont')) || 1;
+  let rdVert   = localStorage.getItem('3ls.rdVert')==='1';   // 세로쓰기 (한중일 글에서만 쓴다)
   let rdDocIdx = null;      // 지금 보고 있는 편(장) — null이면 저장된 마지막 편
   let rdQuery  = '';        // 이 글 안에서만 쓰는 검색어 (통합검색과 무관)
   let rdPending = null;     // 렌더 직후 스크롤할 줄 번호
@@ -1083,6 +1099,14 @@ const App = (() => {
     const last = rdPos(L)._last;
     return (last!=null && docs[last]) ? Number(last) : 0;
   }
+  /* 세로쓰기는 한중일 글에만 뜻이 있다. 팩에 표시를 요구하는 대신 본문을 보고 정한다
+     — 엔진이 언어를 모른다는 원칙 그대로. 앞부분만 훑어도 충분하다. */
+  const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/;
+  function rdCanVert(lines){
+    let s = '';
+    for(let i=0; i<lines.length && s.length<2000; i++) s += lines[i].t || '';
+    return CJK_RE.test(s);
+  }
   // 지금 화면의 레벨 객체 (읽기 도구들이 공통으로 쓴다)
   function rdLevel(){ return pack() && pack().levels.find(x=>x.level===view.arg); }
 
@@ -1091,6 +1115,7 @@ const App = (() => {
     if(!docs.length) return `<div class="empty">${T('noRead')}</div>`;
     const d = rdCurDoc(L), R = docs[d] || {}, lines = R.lines || [];
     const tts = pack().tts, pos = rdPos(L), saved = pos[d];
+    const canVert = rdCanVert(lines), vert = canVert && rdVert;
 
     const toc = docs.length>1 ? `<select class="read-toc" onchange="App.rdDoc(this.value)">` +
       docs.map((x,i)=>{
@@ -1112,6 +1137,7 @@ const App = (() => {
         <span class="read-size">
           <button onclick="App.rdZoom(-1)" title="${esc(T('rdSmaller'))}">A−</button>
           <button onclick="App.rdZoom(1)" title="${esc(T('rdBigger'))}">A＋</button>
+          ${canVert? `<button onclick="App.rdToggleVert()">${vert? T('rdHoriz') : T('rdVert')}</button>`:''}
         </span>
       </div>`;
 
@@ -1129,14 +1155,14 @@ const App = (() => {
       const say = ln.say || ln.t;
       return `${ln.p?'<div class="read-gap"></div>':''}
         <div class="read-line ${readShow?'open':''}" data-i="${i}" onclick="App.rdTapLine(this)">
-          <div class="read-t">${ln.n? `<span class="read-n">${esc(ln.n)}</span>`:''}${esc(ln.t)}${(tts&&ln.t)?`<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(say)}')" title="${esc(T('ttSpeakW'))}">🔊</button>`:''}</div>
+          <div class="read-t">${ln.n? `<span class="read-n${String(ln.n).length<=2?' n2':''}">${esc(ln.n)}</span>`:''}${esc(ln.t)}${(tts&&ln.t)?`<button class="speak" onclick="event.stopPropagation(); App.speak('${jattr(say)}')" title="${esc(T('ttSpeakW'))}">🔊</button>`:''}</div>
           ${tr? `<div class="read-m">${esc(tr)}</div>`:''}
           ${notes? `<div class="read-notes">${notes}</div>`:''}
         </div>`;
     }).join('');
     const after = R.after? `<div class="grammarbox" style="margin-top:16px">${R.after}</div>` : '';
     return `<div class="card">${head}${resume}<div class="read-hits" id="rdHits" hidden></div>${intro}
-      <div class="read-body" id="rdBody" style="font-size:${rdFont}rem"
+      <div class="read-body${vert?' vert':''}" id="rdBody" style="font-size:${rdFont}rem"
            ondblclick="App.rdLookup(event)">${body}</div>${after}</div>`;
   }
 
@@ -1153,6 +1179,13 @@ const App = (() => {
     clearTimeout(rdTapTimer);
     rdTapTimer = setTimeout(()=>el.classList.toggle('open'), 220);
   }
+  function rdToggleVert(){
+    rdVert = !rdVert;
+    localStorage.setItem('3ls.rdVert', rdVert?'1':'0');
+    const L = rdLevel(), at = L ? rdPos(L)[rdCurDoc(L)] : null;
+    render();
+    if(at) requestAnimationFrame(()=>rdJump(at));   // 축이 바뀌어도 읽던 자리를 지킨다
+  }
   function rdDoc(i){ rdDocIdx = Number(i); rdQuery=''; render(); window.scrollTo(0,0); }
   function rdZoom(dir){
     rdFont = Math.min(1.8, Math.max(.8, Math.round((rdFont + dir*.1)*10)/10));
@@ -1163,8 +1196,9 @@ const App = (() => {
   function rdJump(i){
     const el = document.querySelector('.read-line[data-i="'+i+'"]');
     if(!el) return;
-    el.scrollIntoView({block:'center'});
-    requestAnimationFrame(()=>el.scrollIntoView({block:'center'}));
+    const opt = {block:'center', inline:'nearest'};
+    el.scrollIntoView(opt);
+    requestAnimationFrame(()=>el.scrollIntoView(opt));
     el.classList.add('hit');
     setTimeout(()=>el.classList.remove('hit'), 1200);
   }
@@ -1302,11 +1336,21 @@ const App = (() => {
     rdScrollTimer = setTimeout(()=>{
       const els = document.querySelectorAll('.read-line');
       if(!els.length) return;
+      const body = $('#rdBody'), vert = body && body.classList.contains('vert');
       let top = -1;
-      for(const el of els){ if(el.getBoundingClientRect().bottom > 90){ top = Number(el.dataset.i)||0; break; } }
-      // 맺음말까지 내려가 모든 줄이 화면 위로 지나간 경우 — 마지막 줄로 본다.
-      // 0 으로 두면 다 읽고 나갈 때마다 저장된 위치가 지워진다.
-      if(top < 0) top = (scrollY + innerHeight >= document.body.scrollHeight - 40) ? els.length-1 : -1;
+      if(vert){
+        // 세로쓰기는 단이 오른쪽에서 왼쪽으로 쌓인다 → 아직 오른쪽 끝을 안 지난 첫 줄
+        const box = body.getBoundingClientRect();
+        for(const el of els){
+          if(el.getBoundingClientRect().right <= box.right + 4){ top = Number(el.dataset.i)||0; break; }
+        }
+        if(top < 0 && body.scrollWidth - body.clientWidth - Math.abs(body.scrollLeft) < 40) top = els.length-1;
+      }else{
+        for(const el of els){ if(el.getBoundingClientRect().bottom > 90){ top = Number(el.dataset.i)||0; break; } }
+        // 맺음말까지 내려가 모든 줄이 화면 위로 지나간 경우 — 마지막 줄로 본다.
+        // 0 으로 두면 다 읽고 나갈 때마다 저장된 위치가 지워진다.
+        if(top < 0) top = (scrollY + innerHeight >= document.body.scrollHeight - 40) ? els.length-1 : -1;
+      }
       const L = rdLevel();
       if(L && top >= 0) rdSavePos(L, rdCurDoc(L), top);
     }, 400);
@@ -1855,6 +1899,8 @@ const App = (() => {
     // 그 전에 폴백을 돌리면 id 를 뺏기고, 다음 save() 가 잘못된 id 를 굳혀 버린다.
     const pendingLib = !!(S.activeLang && !LANGUAGE_PACKS[S.activeLang] && (S.activeLang in libMap()));
     addEventListener('scroll', rdTrackScroll, {passive:true});   // 읽던 위치 기억
+    // 세로쓰기는 페이지가 아니라 본문이 넘어가므로, 그 스크롤도 같은 추적에 태운다
+    addEventListener('scroll', rdTrackScroll, {passive:true, capture:true});
     if(!pendingLib){ settleActive(); applyI18n(); renderContentsMenu(); render(); }
     // 서재에서 받아둔 원서 복원 — 비동기라 첫 화면을 막지 않고, 끝나면 다시 그린다
     libRestore().then(ok=>{
@@ -1869,7 +1915,7 @@ const App = (() => {
     paintBlocks, moveBlock, resetBlocks, insertChar, startQuiz,
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol,
     toggleSearch, gsSetQuery, gsGoTo,
-    toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine, rdSave,
+    toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine, rdSave, rdToggleVert,
     toggleLibrary, libGet, libDel, libOpen,
     cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, togglePick};
 })();
