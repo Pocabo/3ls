@@ -1,0 +1,113 @@
+{
+ "_comment": "3Ls 서재의 「단어장」 목록. 서재 화면을 열 때 이 파일만 읽고, 본문은 [받기]를 누른 것만 내려받는다. service-worker.js 의 APP_SHELL 에 packs/ 를 넣지 말 것. JLPT 항목은 tools/jlpt_build.py 가 고쳐 쓴다(순서는 그대로 둔다).",
+ "docs": [
+  {
+   "id": "fr-extra",
+   "file": "fr-extra.json",
+   "name": "프랑스어 확장",
+   "flag": "🇫🇷",
+   "target": "fr",
+   "words": 207,
+   "size": "22 KB",
+   "desc": {
+    "kr": "프랑스어 본과정을 넓혀 주는 확장 어휘 사전 — 13분류, 발음·예문 포함.",
+    "en": "Extra French vocabulary in 13 categories, with IPA and examples."
+   }
+  },
+  {
+   "id": "ja-food",
+   "file": "ja-food.json",
+   "name": "일본 음식",
+   "flag": "🇯🇵",
+   "target": "ja",
+   "words": 90,
+   "size": "29 KB",
+   "desc": {
+    "kr": "일본 식재료·요리·조리법·라멘 용어 사전 — 요미가나·예문·팁 포함.",
+    "en": "Japanese food words — ingredients, dishes, cooking and ramen terms, with readings and examples."
+   }
+  },
+  {
+   "id": "ja-onomatope",
+   "file": "ja-onomatope.json",
+   "name": "일본어 의성어·의태어",
+   "flag": "🇯🇵",
+   "target": "ja",
+   "words": 191,
+   "size": "33 KB",
+   "desc": "일본어 의성어(擬音語)·의태어(擬態語)를 주제별로 모은 사전 — 예문 포함."
+  },
+  {
+   "id": "jlpt-n3",
+   "file": "jlpt-n3.json",
+   "name": {
+    "kr": "JLPT N3 단어 사전",
+    "en": "JLPT N3 Vocabulary"
+   },
+   "flag": "🇯🇵",
+   "target": "ja",
+   "words": 1651,
+   "size": "186 KB",
+   "desc": {
+    "kr": "JLPT N3 어휘를 오십음도(あ~わ행) 순으로 모은 열람용 사전. 읽기·한국어 뜻·영어 뜻이 붙어 있습니다. N4·N5에도 나오는 낱말은 그쪽 등급에 맡겼습니다. 낱말 목록은 Waller JLPT 목록, 뜻은 한국어기초사전(1489단어)과 직접 작성(162단어). CC BY-SA 4.0.",
+    "en": "A browse-only Japanese–English dictionary of the JLPT N3 vocabulary in gojūon order, with readings. Words also listed at N4, N5 are left to those levels. Word list and English glosses: Jonathan Waller's JLPT lists. CC BY-SA 4.0."
+   }
+  },
+  {
+   "id": "jlpt-n1",
+   "file": "jlpt-n1.json",
+   "name": {
+    "kr": "JLPT N1 단어 사전",
+    "en": "JLPT N1 Vocabulary"
+   },
+   "flag": "🇯🇵",
+   "target": "ja",
+   "words": 3053,
+   "size": "358 KB",
+   "desc": {
+    "kr": "JLPT N1 어휘를 오십음도(あ~わ행) 순으로 모은 열람용 사전. 읽기·한국어 뜻·영어 뜻이 붙어 있습니다. N2·N3·N4·N5에도 나오는 낱말은 그쪽 등급에 맡겼습니다. 낱말 목록은 Waller JLPT 목록, 뜻은 한국어기초사전(2419단어)과 직접 작성(634단어). CC BY-SA 4.0.",
+    "en": "A browse-only Japanese–English dictionary of the JLPT N1 vocabulary in gojūon order, with readings. Words also listed at N2, N3, N4, N5 are left to those levels. Word list and English glosses: Jonathan Waller's JLPT lists. CC BY-SA 4.0."
+   }
+  },
+  {
+   "id": "zh-local",
+   "file": "zh-local.json",
+   "name": "중국 현지 회화",
+   "flag": "🇨🇳",
+   "target": "zh",
+   "words": 96,
+   "size": "21 KB",
+   "desc": "교과서엔 잘 안 나오는 현지 실전 회화·신조어·밈·결제/배달 용어."
+  },
+  {
+   "id": "kr-hanja",
+   "file": "kr-hanja.json",
+   "name": "한자어",
+   "flag": "🇰🇷",
+   "target": "kr",
+   "words": 163,
+   "size": "35 KB",
+   "desc": "생활 속 한자어·불교 유래어·일본어와 같은 한자어 — 한자 풀이 수록. 「일본어와 같은 한자어」의 발음·뜻풀이는 국립국어원 한국어기초사전(CC BY-SA 2.0 KR)."
+  },
+  {
+   "id": "kr-idiom",
+   "file": "kr-idiom.json",
+   "name": "고사성어",
+   "flag": "🇰🇷",
+   "target": "kr",
+   "words": 70,
+   "size": "16 KB",
+   "desc": "고사성어(주로 사자성어)의 뜻과 유래를 주제별로 정리."
+  },
+  {
+   "id": "hanja1-dict",
+   "file": "hanja1-dict.json",
+   "name": "1급 배정한자 사전",
+   "flag": "🇰🇷",
+   "target": "hanja",
+   "words": 1607,
+   "size": "101 KB",
+   "desc": "대한상공회의소 1급 배정한자 전체 — 초성(ㄱ~ㅎ)별, 음·훈 수록."
+  }
+ ]
+}

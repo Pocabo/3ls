@@ -3,7 +3,7 @@
 CEFR 기반 10레벨 커리큘럼으로 언어를 학습하는 **설치형 웹앱(PWA)** 입니다.
 서버·앱스토어·APK 불필요 — 브라우저로 열거나, 홈 화면에 설치해 **오프라인**으로 쓸 수 있습니다.
 
-**현재 버전: v7.1.3.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
+**현재 버전: v7.2.0.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
 > 요약(4자리 `LANG.MAJOR.MINOR.PATCH`): **LANG**=지원 언어 수, **MAJOR**=대형 기능/새 콘텐츠 축(단어은행·새 번역 방향 등), **MINOR**=UI·UX 변경, **PATCH**=오류 수정·기존 팩 단어 추가. 왼쪽이 오르면 오른쪽은 0으로 리셋.
 > LANG 자리만 봐도 지원 언어 개수를 알 수 있습니다. 새 버전을 낼 땐 `index.html`의 `APP_VERSION`, `service-worker.js`의 `CACHE`, `manifest.json`의 `version`, 이 문서의 현재 버전을 함께 올려주세요.
 
@@ -90,25 +90,27 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 │   ├── mkreading_gui.pyw   ← 더블클릭해 쓰는 변환 창 (미리보기·교정·index.json 갱신)
 │   ├── mkreading.py        ← 같은 일을 하는 명령줄 변환기
 │   ├── aozora.py           ← 青空文庫 텍스트(루비·Shift-JIS) 전용 변환기
+│   ├── jlpt_build.py       ← JLPT 단어장 생성기 (Waller 목록 + 한국어기초사전)
+│   ├── jlpt_manual.tsv     ← 사전에 없는 JLPT 낱말의 뜻 (사람이 적음)
 │   └── 원서-작성법.md      ← 텍스트 파일을 어떻게 적는가
-├── library/            ← 서재 (받기를 누른 것만 내려받는다 — APP_SHELL에 넣지 말 것)
+├── library/            ← 서재 「원서」 (받기를 누른 것만 내려받는다 — APP_SHELL에 넣지 말 것)
 │   ├── index.json      ← 목록(제목·분량·파일명)— 서재 화면을 열 때만 읽는다
 │   └── *.json          ← 원서 본문 = 그냥 언어팩
-└── languages/           ← 파일명 = target 기준 (한 파일이 여러 base 뜻을 담음)
+├── packs/              ← 서재 「단어장」 — 사전 팩도 골라 받는다 (APP_SHELL에 넣지 말 것)
+│   ├── index.json      ← 목록 (library/index.json 과 같은 형식)
+│   └── *.json          ← 확장 어휘·일본 음식·오노마토페·JLPT·현지 회화·한자어·고사성어·1급 배정한자
+└── languages/           ← 앱에 들어 있는 본과정 (한 파일이 여러 base 뜻을 담음)
     ├── fr.js            ← 프랑스어 (본과정, m:{kr,en})
-    ├── fr-extra.js      ← 프랑스어 확장 사전 (extra:true)
     ├── es.js            ← 스페인어
-    ├── ja.js            ← 일본어 (빈 껍데기 → 사전으로 redirect)
-    ├── ja-food.js       ← 일본 음식 사전 (ja 하위 extra)
-    ├── kr.js            ← 한국어 (빈 껍데기)
-    ├── kr-hanja.js      ← 한자어 사전 (kr 하위 extra)
+    ├── ja.js            ← 일본어
+    ├── kr.js            ← 한국어 (빈 껍데기 — 서재에서 사전을 받으면 카드가 생긴다)
     └── _template.js     ← 새 언어팩 작성 가이드
 ```
 
 > 새 언어팩을 추가하면 ① `index.html` 하단에 `<script>` 한 줄, ② `service-worker.js`의
 > `APP_SHELL` 배열에 경로를 넣어야 오프라인에서도 로드됩니다.
 >
-> ⚠️ **서재(`library/`)는 반대로 둘 다 하지 않습니다.** 장편을 미리 받지 않게
+> ⚠️ **서재(`library/`·`packs/`)는 반대로 둘 다 하지 않습니다.** 장편을 미리 받지 않게
 > 하려는 게 서재의 이유기 때문입니다. 받은 파일은 앱이 직접 버전 없는 캐시
 > `3ls-library` 에 넣어, 버전을 올려도 서비스워커의 옆 캐시 청소에 안 쓸립니다.
 
@@ -140,3 +142,14 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 RTL 문자(아랍어·히브리어 등)는 별도 설정 없이 자동으로 올바른 방향으로 표시되고,
 새 `target` 코드('ar'·'solresol'·'piano' 등)도 엔진 수정 없이 카드에 나타납니다(`names` 필드로 표시명 지정).
 
+
+## 자료 출처
+
+| 자료 | 쓰인 곳 | 라이선스 |
+|---|---|---|
+| Jonathan Waller JLPT 어휘 목록 — [stephenmk/yomitan-jlpt-vocab](https://github.com/stephenmk/yomitan-jlpt-vocab) 정리본 | 서재 단어장 `packs/jlpt-n3.json` · `jlpt-n1.json` 의 낱말 목록·영어 뜻 | CC BY / CC BY-SA 4.0 |
+| 국립국어원 [한국어기초사전](https://krdict.korean.go.kr/) 일본어 대역어 | 같은 단어장의 한국어 뜻 | CC BY-SA 2.0 KR |
+| 국립국어원 [한국어기초사전](https://krdict.korean.go.kr/) 발음·뜻풀이 | 단어장 `packs/kr-hanja.json` 의 「일본어와 같은 한자어」 | CC BY-SA 2.0 KR |
+
+JLPT 단어장에서 사전으로 뜻을 찾지 못한 낱말과, 사전 매칭이 틀려 바로잡은 낱말의 뜻은 `tools/jlpt_manual.tsv` 에 사람이 적었습니다.
+두 JLPT 단어장은 위 자료를 가공한 것으로 CC BY-SA 4.0 을 따르며, `tools/jlpt_build.py` 로 다시 만듭니다.

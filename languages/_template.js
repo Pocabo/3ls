@@ -31,6 +31,9 @@
    specialChars : 화면 키보드로 제공할 특수문자 (없으면 [])
    columnLabels : (선택) 열 이름 바꾸기. { key:'새이름', … }. key = cat/word/ipa/
                   meaning/ex/speak. 예: 고사성어 사전 columnLabels:{ipa:'한자'}.
+   ※ 화면에 보이는 문자열 필드(name·menuLabel·nativeName·desc·columnLabels 값·
+     레벨 title/sub/desc)는 {kr:'읽기', en:'Reading'} 처럼 base 별로 줘도 됩니다.
+     현재 base 에 맞는 값이 쓰이고, 없으면 kr 값이 쓰입니다.
    columnOrder  : (선택) 열 순서 바꾸기. ['word','ipa','meaning','ex','speak'] 처럼
                   나열. 목록에 없는 열은 원래 순서로 뒤에 붙음.
                   사용자가 표 위 열 바에서 바꾼 순서가 그 위에 덮인다(기기별 저장).

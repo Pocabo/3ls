@@ -8,7 +8,7 @@
    (예: '3ls-v3.1' → '3ls-v3.2') 옛 캐시가 정리됩니다. 버전 규칙은 CHANGELOG.md 참고.
    경로는 모두 상대경로 → GitHub Pages 하위경로(/repo/)에서도 그대로 동작.
    ===================================================================== */
-const CACHE = '3ls-v7.1.3.0';
+const CACHE = '3ls-v7.2.0.0';
 // 서재에서 받은 원서는 버전 안 붙은 별도 캐시에 둔다.
 // CACHE 안에 두면 앱을 업데이트할 때마다 activate 가 받아둔 책을 통째로 지운다.
 const LIB = '3ls-library';
@@ -21,23 +21,14 @@ const APP_SHELL = [
   './icon.svg',
   './icon-maskable.svg',
   './languages/fr.js',
-  './languages/fr-extra.js',
   './languages/es.js',
   './languages/ja.js',
-  './languages/ja-food.js',
-  './languages/ja-onomatope.js',
   './languages/kr.js',
-  './languages/kr-hanja.js',
-  './languages/kr-idiom.js',
   './languages/zh.js',
-  './languages/zh-local.js',
   './languages/hanja.js',
   './languages/hanja3.js',
   './languages/hanja2.js',
   './languages/hanja1.js',
-  './languages/hanja1-dict.js',
-  './languages/jlpt-n3.js',
-  './languages/jlpt-n1.js',
   './languages/jlpt-n1-vocab.js',
   './languages/la.js'
 ];
@@ -72,9 +63,9 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // 외부(CDN 등)는 그대로 통과
-  // 서재 파일은 앱이 직접 LIB 캐시로 관리한다.
+  // 서재 파일(원서 library/ · 단어장 packs/)은 앱이 직접 LIB 캐시로 관리한다.
   // 여기서 가로채면 본 적 없이 버전 캐시에도 쌓여 업데이트 때 날아간다.
-  if (url.pathname.includes('/library/')) return;
+  if (url.pathname.includes('/library/') || url.pathname.includes('/packs/')) return;
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);

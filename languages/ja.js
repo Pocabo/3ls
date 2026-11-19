@@ -13,7 +13,7 @@ registerLanguagePack({
   flag: '🇯🇵',
   tts: 'ja-JP',
   specialChars: [],
-  columnLabels: { ipa:'읽기' },
+  columnLabels: { ipa:{kr:'읽기', en:'Reading'} },
   desc: '일본어 본과정 — CEFR A1~B1 10레벨',
   levels: [
 
