@@ -3,7 +3,7 @@
 CEFR 기반 10레벨 커리큘럼으로 언어를 학습하는 **설치형 웹앱(PWA)** 입니다.
 서버·앱스토어·APK 불필요 — 브라우저로 열거나, 홈 화면에 설치해 **오프라인**으로 쓸 수 있습니다.
 
-**현재 버전: v7.2.0.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
+**현재 버전: v7.3.0.0** — 변경 이력과 버전 규칙은 [CHANGELOG.md](CHANGELOG.md) 참고.
 > 요약(4자리 `LANG.MAJOR.MINOR.PATCH`): **LANG**=지원 언어 수, **MAJOR**=대형 기능/새 콘텐츠 축(단어은행·새 번역 방향 등), **MINOR**=UI·UX 변경, **PATCH**=오류 수정·기존 팩 단어 추가. 왼쪽이 오르면 오른쪽은 0으로 리셋.
 > LANG 자리만 봐도 지원 언어 개수를 알 수 있습니다. 새 버전을 낼 땐 `index.html`의 `APP_VERSION`, `service-worker.js`의 `CACHE`, `manifest.json`의 `version`, 이 문서의 현재 버전을 함께 올려주세요.
 
@@ -19,11 +19,13 @@ index.html  ← 로컬에서 바로 열기 (Chrome/Edge 권장, TTS 음성 지�
 
 - Link : https://pocabo.github.io/3ls/
 - `manifest.json` + `service-worker.js` + `icon.svg` 로 구성 — **홈 화면 추가** 시 전체화면 앱처럼 실행
-- 서비스워커가 앱 셸(HTML·언어팩·아이콘)을 캐시 → 첫 로딩 후 **인터넷 없이도** 동작
-- **자동 업데이트**: 호스트에 파일을 올리면 다음 실행 때 새 버전을 받아옵니다
-  (내용을 바꾼 뒤에는 `service-worker.js`의 `CACHE = '3ls-vN'` 숫자를 올려 강제 갱신)
+- 앱에는 **언어가 하나도 들어 있지 않습니다.** 언어 선택 화면에서 고른 언어만 받아 기기에 저장합니다(첫 설치 ≈ 140 KB)
+- 서비스워커는 앱 셸(HTML·아이콘)만 캐시하고, 받은 언어·단어장·원서는 앱이 버전 없는 캐시 `3ls-library` 에 둡니다 → **인터넷 없이도** 동작
+- **앱 업데이트**: 호스트에 파일을 올리면 다음 실행 때 새 버전을 받아옵니다(`service-worker.js`의 `CACHE` 를 올려 강제 갱신)
+- **받은 내용 업데이트**: 언어·단어장·원서 파일이 바뀌면 언어 선택 화면·서재·📥 받은 자료에 **⟳ 업데이트** 가 뜹니다.
+  누를 때만 받습니다. 판별은 목록(index.json)의 `rev` — 파일을 고친 뒤 `python tools/catalog.py` 를 돌립니다
 
-## 커리큘럼 구조 (프랑스어 🇫🇷 기본 탑재)
+## 커리큘럼 구조 (프랑스어 🇫🇷 예시)
 
 | 레벨 | CEFR | 단계 | 내용 |
 |---|---|---|---|
@@ -83,7 +85,7 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 3Ls/
 ├── index.html          ← 학습 엔진
 ├── manifest.json       ← PWA 매니페스트
-├── service-worker.js   ← 오프라인 캐시 (언어팩 추가 시 APP_SHELL에도 등록)
+├── service-worker.js   ← 오프라인 캐시 (앱 셸만 — 언어·단어장·원서는 넣지 않는다)
 ├── icon.svg            ← 앱 아이콘 (+ icon-maskable.svg)
 ├── .nojekyll           ← GitHub Pages Jekyll 비활성화
 ├── tools/              ← 원서 만드는 도구
@@ -92,6 +94,7 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 │   ├── aozora.py           ← 青空文庫 텍스트(루비·Shift-JIS) 전용 변환기
 │   ├── jlpt_build.py       ← JLPT 단어장 생성기 (Waller 목록 + 한국어기초사전)
 │   ├── jlpt_manual.tsv     ← 사전에 없는 JLPT 낱말의 뜻 (사람이 적음)
+│   ├── catalog.py          ← 세 목록(index.json)의 크기·낱말 수·rev 갱신 — 버전 올리기 전에 돌린다
 │   └── 원서-작성법.md      ← 텍스트 파일을 어떻게 적는가
 ├── library/            ← 서재 「원서」 (받기를 누른 것만 내려받는다 — APP_SHELL에 넣지 말 것)
 │   ├── index.json      ← 목록(제목·분량·파일명)— 서재 화면을 열 때만 읽는다
@@ -99,20 +102,17 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 ├── packs/              ← 서재 「단어장」 — 사전 팩도 골라 받는다 (APP_SHELL에 넣지 말 것)
 │   ├── index.json      ← 목록 (library/index.json 과 같은 형식)
 │   └── *.json          ← 확장 어휘·일본 음식·오노마토페·JLPT·현지 회화·한자어·고사성어·1급 배정한자
-└── languages/           ← 앱에 들어 있는 본과정 (한 파일이 여러 base 뜻을 담음)
-    ├── fr.js            ← 프랑스어 (본과정, m:{kr,en})
-    ├── es.js            ← 스페인어
-    ├── ja.js            ← 일본어
-    ├── kr.js            ← 한국어 (빈 껍데기 — 서재에서 사전을 받으면 카드가 생긴다)
-    └── _template.js     ← 새 언어팩 작성 가이드
+└── languages/           ← 언어 본과정 — 언어 선택 화면에서 골라 받는다 (APP_SHELL에 넣지 말 것)
+    ├── index.json       ← 언어 목록. 같은 target 의 항목들이 그 언어의 본과정 묶음
+    ├── fr.json · es.json · ja.json · zh.json · la.json · hanja3·2·1.json · jlpt-n1-vocab.json
+    └── _template.js     ← 새 언어팩 작성 가이드 (필드 설명의 정본)
 ```
 
-> 새 언어팩을 추가하면 ① `index.html` 하단에 `<script>` 한 줄, ② `service-worker.js`의
-> `APP_SHELL` 배열에 경로를 넣어야 오프라인에서도 로드됩니다.
+> 새 언어는 `languages/xx.json` 을 두고 `languages/index.json` 에 `{id, file, target}` 한 줄을 넣은 뒤
+> `python tools/catalog.py` 를 돌리면 언어 선택 화면에 카드가 생깁니다. `index.html`·`service-worker.js` 는 고치지 않습니다.
 >
-> ⚠️ **서재(`library/`·`packs/`)는 반대로 둘 다 하지 않습니다.** 장편을 미리 받지 않게
-> 하려는 게 서재의 이유기 때문입니다. 받은 파일은 앱이 직접 버전 없는 캐시
-> `3ls-library` 에 넣어, 버전을 올려도 서비스워커의 옆 캐시 청소에 안 쓸립니다.
+> ⚠️ `languages/`·`library/`·`packs/` 는 `APP_SHELL` 에 넣지 않습니다. 넣으면 앱을 켜자마자 전부 받아 버립니다.
+> 받은 파일은 앱이 직접 버전 없는 캐시 `3ls-library` 에 넣어, 버전을 올려도 서비스워커의 옛 캐시 청소에 안 쓸립니다.
 
 ### 🌐 base(설명 언어) · target(학습 언어)
 - 팩은 **`target`(배우는 언어)만** 선언합니다. 지원하는 **base(설명 언어)는 단어 `m`의 키로 자동 결정**돼요(예: `m:{kr,en}` → KR·EN 둘 다 지원).
@@ -120,8 +120,8 @@ CEFR이 맞지 않는 언어라 문법 순서로 단계를 짠습니다. **286�
 - **확장 팩**: 같은 `target`에 `extra:true` 팩을 두면 언어 선택 카드의 **▾** 와 📂 Contents 드롭다운에서 뜹니다. 표시명은 `menuLabel`. 본과정이 빈(levels:[]) target은 카드 클릭 시 1순위 확장 사전으로 redirect.
 - **나중에 base 추가**: 각 단어 `m`에 키를 더하거나(A), `registerMeanings('fr','ja',{ 'bonjour':'こんにちは', … })` 훅으로 별도 뜻 파일을 얹을 수 있습니다(B, 표제어키 오버레이).
 
-**방법 1 — JS 파일**: `_template.js`를 복사해 `target`을 채우고, `index.html` 하단에 `<script>` 한 줄 추가.
-**방법 2 — JSON 가져오기**: 팩 객체를 `.json`으로 저장 후 ⚙ 메뉴의 **언어팩 가져오기**로 불러오기(브라우저에 저장됨).
+**방법 1 — 배포**: `_template.js` 를 보고 팩 객체를 `languages/xx.json` 으로 저장 → `languages/index.json` 에 한 줄 → `tools/catalog.py`.
+**방법 2 — JSON 가져오기**: 팩 객체를 `.json`으로 저장 후 ⚙ 메뉴의 **언어팩 가져오기**로 불러오기(그 브라우저에만 저장됨).
 
 성(性)이 없는 언어(일본어 등)는 `gender` 필드를 생략하면 UI가 자동으로 숨겨지고, `tts` 로케일만 바꾸면 발음도 그 언어로 나옵니다.
 

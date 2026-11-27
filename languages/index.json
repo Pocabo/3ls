@@ -1,0 +1,128 @@
+{
+ "_comment": "3Ls 언어 목록. 언어 선택 화면이 이 파일만 읽고, 본과정은 [받기]를 누른 것만 내려받는다. 같은 target 의 항목이 그 언어의 본과정 묶음이다. size·words·rev·bases·flag·nativeName·names 는 tools/catalog.py 가 채운다. service-worker.js 의 APP_SHELL 에 languages/ 를 넣지 말 것.",
+ "docs": [
+  {
+   "id": "fr",
+   "file": "fr.json",
+   "target": "fr",
+   "size": "59 KB",
+   "rev": "e871c3410383",
+   "words": 144,
+   "bases": [
+    "kr",
+    "en"
+   ],
+   "flag": "🇫🇷",
+   "nativeName": "Français"
+  },
+  {
+   "id": "es",
+   "file": "es.json",
+   "target": "es",
+   "size": "59 KB",
+   "rev": "fbdc2e6eccb4",
+   "words": 144,
+   "bases": [
+    "kr",
+    "en"
+   ],
+   "flag": "🇪🇸",
+   "nativeName": "Español"
+  },
+  {
+   "id": "ja",
+   "file": "ja.json",
+   "target": "ja",
+   "size": "83 KB",
+   "rev": "f095a100b7ee",
+   "words": 219,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇯🇵",
+   "nativeName": "日本語"
+  },
+  {
+   "id": "jlpt-n1-vocab",
+   "file": "jlpt-n1-vocab.json",
+   "target": "ja",
+   "size": "26 KB",
+   "rev": "f4765d131601",
+   "words": 44,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇯🇵",
+   "nativeName": "N1 文字・語彙"
+  },
+  {
+   "id": "zh",
+   "file": "zh.json",
+   "target": "zh",
+   "size": "45 KB",
+   "rev": "4c8d59416e12",
+   "words": 120,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇨🇳",
+   "nativeName": "中文"
+  },
+  {
+   "id": "la",
+   "file": "la.json",
+   "target": "la",
+   "size": "172 KB",
+   "rev": "13c9da095c49",
+   "words": 286,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🏛",
+   "nativeName": "Lingua Latina",
+   "names": {
+    "kr": "라틴어",
+    "en": "Latin"
+   }
+  },
+  {
+   "id": "hanja3",
+   "file": "hanja3.json",
+   "target": "hanja",
+   "size": "26 KB",
+   "rev": "cb038c005bff",
+   "words": 88,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇰🇷",
+   "nativeName": "漢字 3級"
+  },
+  {
+   "id": "hanja2",
+   "file": "hanja2.json",
+   "target": "hanja",
+   "size": "18 KB",
+   "rev": "386cf1ae29b5",
+   "words": 68,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇰🇷",
+   "nativeName": "漢字 2級"
+  },
+  {
+   "id": "hanja1",
+   "file": "hanja1.json",
+   "target": "hanja",
+   "size": "20 KB",
+   "rev": "8e53f590c890",
+   "words": 72,
+   "bases": [
+    "kr"
+   ],
+   "flag": "🇰🇷",
+   "nativeName": "漢字 1級"
+  }
+ ]
+}

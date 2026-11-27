@@ -12,7 +12,12 @@
    "desc": {
     "kr": "프랑스어 본과정을 넓혀 주는 확장 어휘 사전 — 13분류, 발음·예문 포함.",
     "en": "Extra French vocabulary in 13 categories, with IPA and examples."
-   }
+   },
+   "rev": "b266cef91bdb",
+   "bases": [
+    "kr",
+    "en"
+   ]
   },
   {
    "id": "ja-food",
@@ -25,7 +30,12 @@
    "desc": {
     "kr": "일본 식재료·요리·조리법·라멘 용어 사전 — 요미가나·예문·팁 포함.",
     "en": "Japanese food words — ingredients, dishes, cooking and ramen terms, with readings and examples."
-   }
+   },
+   "rev": "7b9c32a59185",
+   "bases": [
+    "kr",
+    "en"
+   ]
   },
   {
    "id": "ja-onomatope",
@@ -35,7 +45,11 @@
    "target": "ja",
    "words": 191,
    "size": "33 KB",
-   "desc": "일본어 의성어(擬音語)·의태어(擬態語)를 주제별로 모은 사전 — 예문 포함."
+   "desc": "일본어 의성어(擬音語)·의태어(擬態語)를 주제별로 모은 사전 — 예문 포함.",
+   "rev": "dcfb215b6ba1",
+   "bases": [
+    "kr"
+   ]
   },
   {
    "id": "jlpt-n3",
@@ -51,7 +65,12 @@
    "desc": {
     "kr": "JLPT N3 어휘를 오십음도(あ~わ행) 순으로 모은 열람용 사전. 읽기·한국어 뜻·영어 뜻이 붙어 있습니다. N4·N5에도 나오는 낱말은 그쪽 등급에 맡겼습니다. 낱말 목록은 Waller JLPT 목록, 뜻은 한국어기초사전(1489단어)과 직접 작성(162단어). CC BY-SA 4.0.",
     "en": "A browse-only Japanese–English dictionary of the JLPT N3 vocabulary in gojūon order, with readings. Words also listed at N4, N5 are left to those levels. Word list and English glosses: Jonathan Waller's JLPT lists. CC BY-SA 4.0."
-   }
+   },
+   "rev": "b8f01036d794",
+   "bases": [
+    "kr",
+    "en"
+   ]
   },
   {
    "id": "jlpt-n1",
@@ -67,7 +86,12 @@
    "desc": {
     "kr": "JLPT N1 어휘를 오십음도(あ~わ행) 순으로 모은 열람용 사전. 읽기·한국어 뜻·영어 뜻이 붙어 있습니다. N2·N3·N4·N5에도 나오는 낱말은 그쪽 등급에 맡겼습니다. 낱말 목록은 Waller JLPT 목록, 뜻은 한국어기초사전(2419단어)과 직접 작성(634단어). CC BY-SA 4.0.",
     "en": "A browse-only Japanese–English dictionary of the JLPT N1 vocabulary in gojūon order, with readings. Words also listed at N2, N3, N4, N5 are left to those levels. Word list and English glosses: Jonathan Waller's JLPT lists. CC BY-SA 4.0."
-   }
+   },
+   "rev": "477467d8a80d",
+   "bases": [
+    "kr",
+    "en"
+   ]
   },
   {
    "id": "zh-local",
@@ -77,7 +101,11 @@
    "target": "zh",
    "words": 96,
    "size": "21 KB",
-   "desc": "교과서엔 잘 안 나오는 현지 실전 회화·신조어·밈·결제/배달 용어."
+   "desc": "교과서엔 잘 안 나오는 현지 실전 회화·신조어·밈·결제/배달 용어.",
+   "rev": "4168a87ce968",
+   "bases": [
+    "kr"
+   ]
   },
   {
    "id": "kr-hanja",
@@ -87,7 +115,11 @@
    "target": "kr",
    "words": 163,
    "size": "35 KB",
-   "desc": "생활 속 한자어·불교 유래어·일본어와 같은 한자어 — 한자 풀이 수록. 「일본어와 같은 한자어」의 발음·뜻풀이는 국립국어원 한국어기초사전(CC BY-SA 2.0 KR)."
+   "desc": "생활 속 한자어·불교 유래어·일본어와 같은 한자어 — 한자 풀이 수록. 「일본어와 같은 한자어」의 발음·뜻풀이는 국립국어원 한국어기초사전(CC BY-SA 2.0 KR).",
+   "rev": "4a91b316ac2c",
+   "bases": [
+    "kr"
+   ]
   },
   {
    "id": "kr-idiom",
@@ -97,7 +129,11 @@
    "target": "kr",
    "words": 70,
    "size": "16 KB",
-   "desc": "고사성어(주로 사자성어)의 뜻과 유래를 주제별로 정리."
+   "desc": "고사성어(주로 사자성어)의 뜻과 유래를 주제별로 정리.",
+   "rev": "7f79b7ebafbc",
+   "bases": [
+    "kr"
+   ]
   },
   {
    "id": "hanja1-dict",
@@ -107,7 +143,11 @@
    "target": "hanja",
    "words": 1607,
    "size": "101 KB",
-   "desc": "대한상공회의소 1급 배정한자 전체 — 초성(ㄱ~ㅎ)별, 음·훈 수록."
+   "desc": "대한상공회의소 1급 배정한자 전체 — 초성(ㄱ~ㅎ)별, 음·훈 수록.",
+   "rev": "1faaa04c8610",
+   "bases": [
+    "kr"
+   ]
   }
  ]
 }

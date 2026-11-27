@@ -3,14 +3,15 @@
    ---------------------------------------------------------------
    새 언어를 추가하는 두 가지 방법:
 
-   [방법 1] JS 파일 (권장)
-     1) 이 파일을 복사해 languages/es.js 처럼 저장
-     2) 아래 내용을 그 언어에 맞게 채우기
-     3) index.html 하단에 <script src="languages/es.js"></script> 추가
+   [방법 1] 배포 (권장) — 앱에는 언어가 들어 있지 않고, 언어 선택 화면에서 골라 받는다
+     1) 아래 registerLanguagePack( ... ) 안쪽의 객체를 languages/es.json 처럼 JSON 으로 저장
+     2) languages/index.json 의 docs 에 {"id":"es","file":"es.json","target":"es"} 한 줄 추가
+        (같은 target 의 항목이 여럿이면 그 언어의 본과정 묶음으로 함께 받는다)
+     3) python tools/catalog.py — 크기·낱말 수·rev·bases·flag 를 채운다
+     사전형 팩(dictionary:true)은 languages/ 대신 packs/ 와 packs/index.json 에 둔다.
 
-   [방법 2] JSON 파일
-     아래 registerLanguagePack( ... ) 안쪽의 객체만 .json 파일로 저장한 뒤,
-     프로그램 상단의 "＋ 언어팩" 버튼으로 불러오기 (브라우저에 저장됨)
+   [방법 2] JSON 파일 가져오기
+     같은 객체를 .json 파일로 저장한 뒤, ⚙ "＋ 언어팩 가져오기" 로 불러오기 (그 브라우저에만 저장됨)
 
    ── 필드 규칙 ─────────────────────────────────────────────
    id           : 팩 고유 id (파일명과 맞추기, 예: 'es', 'ja', 'fr-extra')

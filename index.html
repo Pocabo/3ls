@@ -78,6 +78,12 @@ header .spacer{flex:1}
 .pick-sub.open{display:block}
 .pick-subitem{display:block; width:100%; text-align:left; padding:10px 12px; border-radius:9px; font-weight:600; color:var(--ink)}
 .pick-subitem:hover{background:var(--accent-soft); color:var(--accent)}
+.pick-card.off .pick-flag{filter:grayscale(.5); opacity:.8}
+.pick-get{flex:none; padding:8px 12px; font-size:.85rem}
+@media (max-width:480px){ .pick-head{flex-wrap:wrap} .pick-get{order:3; width:100%; text-align:center} }   /* 폰에선 받기 버튼을 둘째 줄로 */
+.pick-row{display:flex; align-items:center; gap:10px; padding:6px 6px 6px 12px; font-weight:600}
+.pick-row span{flex:1; min-width:0}
+.pick-row .btn{padding:6px 12px; font-size:.82rem}
 /* 언어 선택 페이지 상단: 제목 + Base(설명 언어) 드롭다운 */
 .pick-title{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px}
 .base-select{padding:6px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); font-weight:700; color:var(--accent)}
@@ -363,9 +369,11 @@ a{color:var(--accent)}
    3Ls (Language Learning Library) — 언어 비종속(language-agnostic) 학습 엔진
    -------------------------------------------------------------
    ◆ 설계 원칙: 엔진은 어떤 언어도 모른다. 모든 언어 지식(단어·문법·
-     연습문제·TTS 로케일·특수문자)은 languages/*.js 언어팩이 공급한다.
-   ◆ 새 언어 추가 = languages/xx.js 작성 + <script src> 한 줄 추가,
-     또는 상단 "＋ 언어팩" 버튼으로 JSON 파일 가져오기.
+     연습문제·TTS 로케일·특수문자)은 언어팩 JSON 이 공급한다.
+   ◆ 앱에는 언어가 하나도 들어 있지 않다. 언어 선택 화면에서 고른 것만 받는다
+     (languages/ 본과정 · packs/ 단어장 · library/ 원서 — 받기·복원은 서재 코드가 맡는다).
+   ◆ 새 언어 추가 = languages/xx.json + languages/index.json 한 줄 → tools/catalog.py,
+     또는 ⚙ "＋ 언어팩 가져오기" 로 JSON 파일 가져오기.
    ◆ 언어팩 스키마는 languages/_template.js 참고.
    ===================================================================== */
 window.LANGUAGE_PACKS = {};
@@ -392,7 +400,7 @@ const App = (() => {
      (예: 단어은행, 새 번역 방향) · MINOR=UI·UX 변경 · PATCH=버그 수정·기존 팩 단어 추가.
      왼쪽이 오르면 오른쪽은 0으로 리셋. 자세한 이력은 CHANGELOG.md 참고. 새 버전을 낼 땐 이 값과
      service-worker.js의 CACHE 상수를 함께 올려주세요(같은 문자열=앱 버전이라 헷갈리지 않습니다). */
-  const APP_VERSION = '7.2.0.0';
+  const APP_VERSION = '7.3.0.0';
   const STORE_KEY = 'polyglotBuilder.v1';
   const PACKS_KEY = 'polyglotBuilder.customPacks.v1';
   const SRS_DAYS = [0, 1, 3, 7, 14, 30];       // 누적 복습 간격(일)
@@ -463,8 +471,6 @@ const App = (() => {
   }
   function packWordCount(id, base){ const p=LANGUAGE_PACKS[id]; if(!p) return 0;
     return p.levels.reduce((n,L)=>n+(L.words?(base? L.words.filter(w=>w.m&&String(w.m[base]||'').trim()).length : L.words.length):0),0); }
-  function basesAvailable(){ const s=new Set(); Object.values(LANGUAGE_PACKS).forEach(p=>packBases(p).forEach(b=>s.add(b)));
-    return [...s].sort((a,b)=> a==='kr'?-1 : b==='kr'?1 : a.localeCompare(b)); }
   function packsOfTarget(t){ return Object.values(LANGUAGE_PACKS).filter(p=>p.target===t).sort((a,c)=>(a.extra?1:0)-(c.extra?1:0)); }
   function targetSupportsBase(t,b){ return packsOfTarget(t).some(p=>packBases(p).has(b)); }
   function targetsForBase(b){ const s=[]; Object.values(LANGUAGE_PACKS).forEach(p=>{
@@ -495,7 +501,8 @@ const App = (() => {
     if(x) return x[b]||x.ko||t;
     const m = mainPackOf(t);
     if(m) return (m.names && (m.names[b]||m.names.ko)) || m.name || t;
-    return t;
+    const d = (libState.list||[]).find(d => d.target===t && d.names);
+    return d ? (d.names[b] || d.names.kr || t) : t;
   }
   const BASE_LABEL = { kr:'한국어', en:'English' };
   // 단어 뜻/예문번역/팁을 현재 base로 골라 반환
@@ -532,7 +539,9 @@ const App = (() => {
          dlClearAsk:'받은 자료 {n}개를 모두 이 기기에서 지울까요? 서재 항목은 다시 받을 수 있지만, 가져온 팩은 원본 JSON 파일이 있어야 되살릴 수 있습니다.',
          thCat:'분류', thWord:'단어', thIpa:'발음', thMean:'뜻', thEx:'예문', thSpeak:'듣기', colFold:'열', tipCol:'💡팁', colLeft:'왼쪽으로', colRight:'오른쪽으로', colMove:'끌어서 옮기기', colHide:'눌러서 접기·펼치기',
          cChoose:'언어 선택…', cContents:'이 언어의 콘텐츠',
-         pickHint:'설명 언어(Base)를 고르고, 배울 언어를 선택하세요. 확장 콘텐츠가 있으면 ▾ 로 펼칩니다.',
+         pickHint:'설명 언어(Base)를 고르고, 배울 언어를 선택하세요. 처음 고른 언어는 그때 받아서 기기에 저장합니다. 단어장 같은 확장 콘텐츠는 ▾ 로 펼칩니다.',
+         pickNoCat:'언어 목록을 불러오지 못했습니다. 인터넷에 연결되면 언어를 받을 수 있습니다.', pickLists:'단어장 {n}개',
+         libUpdate:'⟳ 업데이트', libNew:'새 판', dlKindCourse:'과정',
          baseLabel:'설명 언어', now:'현재', dict:'사전', backList:'← 분류 목록으로', backMap:'← 레벨 지도로',
          words:'단어', exercises:'연습', wbTitle:'단어은행', wbSearch:'단어·뜻·예문으로 검색...',
          wbAll:'전체', wbShown:'개 표시 중', wbTable:'📋 표', wbCards:'🃏 카드',
@@ -562,7 +571,7 @@ const App = (() => {
          flashDoneSub:'"몰라요"로 표시한 단어는 복습 큐에 들어갔습니다. 상단 🔁 복습에서 반복하세요.',
          oneMore:'한 번 더', noGrammar:'이 레벨에는 별도 문법 노트가 없습니다.',
          noEx:'연습 문제가 없습니다.', noLevel:'레벨을 찾을 수 없습니다.',
-         noPack:'언어팩이 없습니다. languages/ 폴더의 스크립트를 확인하세요.',
+         noPack:'받은 언어가 없습니다. 언어 선택 화면에서 언어를 받으세요.',
          phIntro:'기초 다지기', phA:'Phase A · 블록 조립', phB:'Phase B · 확장/빈칸', phC:'Phase C · 자유 작문',
          ttContents:'콘텐츠 · 언어 선택', ttWord:'단어은행 열기/닫기 — 다시 누르면 학습 홈으로',
          ttSearch:'통합검색 — 설치된 모든 언어에서 단어 검색', ttRemind:'복습', ttMenu:'메뉴',
@@ -597,7 +606,9 @@ const App = (() => {
          dlClearAsk:'Remove all {n} items from this device? Library items can be downloaded again; imported packs need their original JSON files.',
          thCat:'Category', thWord:'Word', thIpa:'IPA', thMean:'Meaning', thEx:'Example', thSpeak:'Audio', colFold:'Columns', tipCol:'💡Tip', colLeft:'Move left', colRight:'Move right', colMove:'Drag to reorder', colHide:'Click to show or hide',
          cChoose:'Choose language…', cContents:'Contents in this language',
-         pickHint:'Pick your base language, then the language to learn. Expand ▾ for extra content.',
+         pickHint:'Pick your base language, then the language to learn. A language is downloaded to this device the first time you pick it. Expand ▾ for extras such as word lists.',
+         pickNoCat:'Could not load the language list. You can download languages once you are online.', pickLists:'{n} word lists',
+         libUpdate:'⟳ Update', libNew:'update', dlKindCourse:'Course',
          baseLabel:'Base', now:'current', dict:'dict', backList:'← Back to list', backMap:'← Back to levels',
          words:'words', exercises:'exercises', wbTitle:'Word Bank', wbSearch:'Search word, meaning, example...',
          wbAll:'All', wbShown:' shown', wbTable:'📋 Table', wbCards:'🃏 Cards',
@@ -627,7 +638,7 @@ const App = (() => {
          flashDoneSub:'Words marked “Don’t know” joined the review queue. Repeat them via 🔁 Remind.',
          oneMore:'One more round', noGrammar:'No grammar notes for this level.',
          noEx:'No practice exercises.', noLevel:'Level not found.',
-         noPack:'No language pack found. Check the scripts in the languages/ folder.',
+         noPack:'No language downloaded yet. Get one from the language list.',
          phIntro:'Foundations', phA:'Phase A · Build blocks', phB:'Phase B · Expand / fill-in', phC:'Phase C · Free writing',
          ttContents:'Contents · choose language', ttWord:'Toggle Word Bank — press again to return home',
          ttSearch:'Search every installed language pack', ttRemind:'Review', ttMenu:'Menu',
@@ -720,7 +731,8 @@ const App = (() => {
   /* ── 라우팅 ─────────────────────────────────────── */
   function go(name, arg){
     view = {name, arg}; quiz=null; flash=null; wbState=null; gsState=null; dlState=null;
-    if(name!=='library') libState=null;
+    libState.err = null;
+    if(['picker','library','downloads'].includes(name) && libState.stale) libLoad();   // 읽기에 실패했으면 화면에 들어올 때 다시
     rdDocIdx=null; rdQuery='';           // 다른 화면으로 나가면 읽기 상태는 저장된 것으로 되돌린다
     render(); window.scrollTo(0,0);
   }
@@ -731,12 +743,12 @@ const App = (() => {
     if(view.name==='picker'){ el.innerHTML = pickerView(); return; } // 언어 선택 화면은 활성 팩과 무관
     if(view.name==='search'){ el.innerHTML = searchView(); return; } // 통합검색도 활성 팩과 무관
     if(view.name==='downloads'){ el.innerHTML = downloadsView(); return; } // 받은 자료도 활성 팩과 무관
-    if(!pack()){ el.innerHTML = `<div class="empty">${T('noPack')}</div>`; return; }
+    if(view.name==='library'){ el.innerHTML = libraryView(); return; }
+    if(!pack()){ el.innerHTML = pickerView(); return; }   // 받은 언어가 없으면 어느 화면이든 언어 선택으로
     if(view.name==='home') el.innerHTML = homeView();
     else if(view.name==='level') el.innerHTML = levelView(view.arg);
     else if(view.name==='review') el.innerHTML = reviewView();
     else if(view.name==='wordbank') el.innerHTML = wordbankView();
-    else if(view.name==='library') el.innerHTML = libraryView();
     Object.keys(window.__blocks||{}).forEach(paintBlocks); // 블록 문제 초기 페인트
     updateBadge();
   }
@@ -754,52 +766,91 @@ const App = (() => {
   /* ── 언어 선택 화면 ────────────────────────────────
      제목 옆 Base(설명 언어) 드롭다운으로 KR/EN 전환. 아래엔 그 base의 target들을
      카드로 나열하고, 한 target에 확장 팩이 있으면 카드 ▾ 로 펼쳐 바로 들어간다. */
+  // 언어 선택: 받은 언어 + 목록(languages/ 본과정 · packs/ 단어장)에 있는 언어를 한 판에 그린다.
+  // 안 받은 언어 카드를 누르면 그 언어 본과정 묶음을 받고 연다. 단어장은 ▾ 에서 하나씩 받는다.
+  const pickOpen = new Set();         // ▾ 를 펼친 카드 — 받는 중 다시 그려도 펼친 채로 둔다
+  const kb = s => parseInt(s, 10) || 0;
   function pickerView(){
-    const b = curBase();
-    const baseOpts = basesAvailable().map(x=>`<option value="${x}" ${x===b?'selected':''}>${BASE_LABEL[x]||x}</option>`).join('');
-    const cards = targetsForBase(b).map(t=>{
-      const ps = packsOfTarget(t), main = mainPackOf(t);
-      const extras = ps.filter(p=>p!==main && packBases(p).has(b));   // 현재 base를 지원하는 확장만
-      const words = ps.reduce((n,p)=>n+packWordCount(p.id, b),0);      // 현재 base에 뜻이 있는 단어만 집계
-      const active = (LANGUAGE_PACKS[S.activeLang]||{}).target===t;
-      const caret = extras.length
-        ? `<button class="pick-caret" onclick="App.togglePick('${t}',event)" title="${esc(T('ttExtra'))}" aria-label="${esc(T('ttExtra'))}">▾</button>` : '';
-      const sub = extras.length
-        ? `<div class="pick-sub" id="picksub-${t}">${extras.map(k=>
-            `<button class="pick-subitem" onclick="App.switchLang('${k.id}')">${k.id===S.activeLang?'● ':''}${k.flag||''} ${esc(k.menuLabel||k.name)}${k.dictionary?` <span class="pill gray">${T('dict')}</span>`:''}</button>`
-          ).join('')}</div>` : '';
-      return `<div class="levelcard pick-card ${active?'on':''}">
-        <div class="pick-head" onclick="App.switchLang('${main.id}')">
-          <div class="pick-flag">${TARGETS[t]?.flag||main.flag||'🌐'}</div>
+    if(libState.list === null) libLoad();
+    const b = curBase(), map = libMap(), busy = libState.busy;
+    const baseOpts = Object.keys(BASE_LABEL).map(x=>`<option value="${x}" ${x===b?'selected':''}>${BASE_LABEL[x]}</option>`).join('');
+    const cat = (libState.list||[]).filter(d => d.kind!=='book' && (!d.bases || d.bases.includes(b)));
+    const order = [...new Set([...cat.map(d=>d.target), ...targetsForBase(b)])].filter(Boolean);
+    const cards = order.map(t=>{
+      const ps = packsOfTarget(t).filter(p=>packBases(p).has(b));
+      const main = ps.find(p=>!p.extra) || ps[0];            // 이 base 로 쓸 수 있게 받아 둔 팩
+      const courses = cat.filter(d=>d.kind==='course' && d.target===t);
+      const lists = cat.filter(d=>d.kind==='pack' && d.target===t);
+      const missing = courses.filter(d=>!map[d.id]), need = missing.length ? missing : courses.filter(libStale);
+      const getting = courses.some(d=>d.id===busy);
+      const active = !!main && (LANGUAGE_PACKS[S.activeLang]||{}).target===t;
+      const first = courses[0] || lists[0] || {};
+      const rows = [
+        ...ps.filter(p=>p!==main).map(k=>
+          `<button class="pick-subitem" onclick="App.switchLang('${jattr(k.id)}')">${k.id===S.activeLang?'● ':''}${esc(k.flag||'')} ${esc(k.menuLabel||k.name)}${k.dictionary?` <span class="pill gray">${T('dict')}</span>`:''}</button>`),
+        ...lists.filter(d => !map[d.id] || libStale(d)).map(d => {
+          const upd = !!map[d.id], i = libState.list.indexOf(d);
+          return `<div class="pick-row"><span>${esc(d.flag||'')} ${esc(loc(d.name)||d.id)} <span class="pill gray">${T('dict')}</span> <span class="read-src">${esc(d.size||'')}</span></span>${
+            busy===d.id ? `<button class="btn" disabled>${T('libGetting')}</button>`
+            : `<button class="btn ${upd?'good':'primary'}" onclick="App.libGet(${i})">${T(upd?'libUpdate':'libGet')}</button>`}</div>`;
+        })];
+      const open = pickOpen.has(t) || (!main && !courses.length);   // 단어장만 있는 언어는 펼쳐서 보여 준다
+      const caret = rows.length
+        ? `<button class="pick-caret" onclick="App.togglePick('${jattr(t)}',event)" title="${esc(T('ttExtra'))}" aria-label="${esc(T('ttExtra'))}">▾</button>` : '';
+      const sub = rows.length ? `<div class="pick-sub ${open?'open':''}" id="picksub-${esc(t)}">${rows.join('')}</div>` : '';
+      let meta, act = '', onclick;
+      if(main){
+        const words = ps.reduce((n,p)=>n+packWordCount(p.id, b),0);
+        const nat = (!main.extra && main.nativeName) || first.nativeName || main.nativeName || '';
+        meta = `${esc(nat)} · ${words} ${T('words')}${ps.length>1?` · +${ps.length-1}`:''}`;
+        onclick = `App.switchLang('${jattr(main.id)}')`;
+        if(need.length) act = `<button class="btn ${missing.length?'primary':'good'} pick-get" onclick="event.stopPropagation(); App.getCourse('${jattr(t)}')" ${getting?'disabled':''}>${
+          getting ? T('libGetting') : missing.length ? `${T('libGet')} · ${missing.reduce((n,d)=>n+kb(d.size),0)} KB` : T('libUpdate')}</button>`;
+      }else if(courses.length){
+        const words = courses.reduce((n,d)=>n+(d.words||0),0), size = courses.reduce((n,d)=>n+kb(d.size),0);
+        meta = `${esc(first.nativeName||'')} · ${words} ${T('words')}`;
+        onclick = getting ? '' : `App.getCourse('${jattr(t)}', true)`;
+        act = `<span class="btn primary pick-get">${getting? T('libGetting') : `${T('libGet')} · ${size} KB`}</span>`;
+      }else{
+        meta = TF('pickLists',{n:lists.length});
+        onclick = `App.togglePick('${jattr(t)}')`;
+      }
+      return `<div class="levelcard pick-card ${active?'on':''} ${main?'':'off'}">
+        <div class="pick-head" onclick="${onclick}">
+          <div class="pick-flag">${TARGETS[t]?.flag||(main&&main.flag)||first.flag||'🌐'}</div>
           <div class="pick-body">
             <h3>${esc(targetName(t))}${active?` <span class="pill">${T('now')}</span>`:''}</h3>
-            <div class="meta">${esc(main.nativeName||'')} · ${words} ${T('words')}${extras.length?` · +${extras.length}`:''}</div>
+            <div class="meta">${meta}</div>
           </div>
-          ${caret}
+          ${act}${caret}
         </div>${sub}
       </div>`;
     }).join('');
+    const note = libState.list === null && !order.length ? `<div class="card"><div class="empty">${T('libLoading')}</div></div>`
+      : libState.stale ? `<div class="hint" style="margin-bottom:12px">${T('pickNoCat')}</div>`
+      : libState.err ? `<div class="hint" style="margin-bottom:12px">${TF('libErr',{e:esc(libState.err)})}</div>` : '';
     return `<div class="pick-title"><h1>🌐 Languages</h1>
         <span class="base-tag">${T('baseLabel')}</span>
         <select class="base-select" onchange="App.setBase(this.value)" title="${esc(T('baseLabel'))}">${baseOpts}</select>
       </div>
       <p class="sub" style="margin-bottom:18px">${T('pickHint')}</p>
-      <div class="levelgrid">${cards}</div>`;
+      ${note}<div class="levelgrid">${cards}</div>`;
   }
   // picker 카드의 ▾: 재렌더 없이 그 target의 확장 목록만 펼침/접기 (카드 클릭 전파 차단)
   function togglePick(id, e){
     if(e) e.stopPropagation();
     const box = document.getElementById('picksub-'+id);
-    if(box) box.classList.toggle('open');
+    if(box) pickOpen[box.classList.toggle('open') ? 'add' : 'delete'](id);
   }
   // Base(설명 언어) 전환: UI 언어도 바뀜. 현재 팩이 새 base를 지원하면 유지, 아니면 첫 target으로.
   function setBase(b){
-    if(!targetsForBase(b).length) return;
+    if(!BASE_LABEL[b]) return;
     S.base = b;
     const p = LANGUAGE_PACKS[S.activeLang];
     if(!p || !packBases(p).has(b)){
       const ts = targetsForBase(b);
       if(ts.length) S.activeLang = resolvePack(mainPackOf(ts[0]).id);
+      else view = {name:'picker'};              // 이 base 로 받은 언어가 없으면 언어 선택에서 받는다
     }
     save(); applyI18n(); renderContentsMenu(); render();
   }
@@ -1764,8 +1815,8 @@ const App = (() => {
   // 상단 "언어 선택…"으로 언어 선택 페이지(base·target)로 진입.
   function renderContentsMenu(){
     const panel = $('#contentsPanel'); if(!panel) return;
-    const cur = LANGUAGE_PACKS[S.activeLang]; if(!cur){ panel.innerHTML=''; return; }
-    const items = packsOfTarget(cur.target).filter(p=>!isEmptyPack(p) && packBases(p).has(curBase())).map(p=>{
+    const cur = LANGUAGE_PACKS[S.activeLang];
+    const items = !cur ? '' : packsOfTarget(cur.target).filter(p=>!isEmptyPack(p) && packBases(p).has(curBase())).map(p=>{
       const on = p.id===S.activeLang;
       const label = p.extra ? (p.menuLabel||p.name) : targetName(p.target);
       return `<button class="menu-item" onclick="App.closeContents(); App.switchLang('${p.id}')">
@@ -1815,11 +1866,20 @@ const App = (() => {
      받은 문서는 그냥 언어팩이므로 목차·읽기·검색 등 나머지 기능은 그대로 쓴다. */
   const LIB_CACHE = '3ls-library';
   const LIB_KEY   = '3ls.lib';        // { <팩 id>: <내려받은 URL> }
-  let libState = null;                // { list, err, busy }
+  let libState = {list:null, err:null, busy:null, stale:false};   // 세 목록을 합친 것 — 화면을 옮겨도 남는다
+  const LIB_REV = '3ls.libRev';       // { <팩 id>: 받을 때의 rev } — 목록의 rev 와 다르면 [업데이트]
+  const CAT_KEY = '3ls.catalog';      // 마지막으로 읽은 목록 — 오프라인에서도 카드를 그린다
   let dlState = null;                 // 받은 자료 화면 { rows:{lib,imp}|null, err } — 목록이 바뀌면 null 로 비워 다시 잰다
 
   function libMap(){ try{ return JSON.parse(localStorage.getItem(LIB_KEY)||'{}'); }catch(e){ return {}; } }
   function libSetMap(o){ localStorage.setItem(LIB_KEY, JSON.stringify(o)); dlState = null; }
+  function libRevs(){ try{ return JSON.parse(localStorage.getItem(LIB_REV)||'{}'); }catch(e){ return {}; } }
+  function libRevSet(id, rev){ const r = libRevs(); if(rev) r[id] = rev; else delete r[id]; localStorage.setItem(LIB_REV, JSON.stringify(r)); }
+  async function sha12(text){
+    const h = new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text)));
+    return [...h].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 12);
+  }
+  function libStale(d){ return !!(d && d.rev && libMap()[d.id] && libRevs()[d.id] !== d.rev); }
   function libUrl(d){ return d.url || ('library/' + d.file); }   // 같은 저장소가 기본, 절대 URL도 허용
   function libOK(){ return typeof caches !== 'undefined'; }      // file:// 에는 Cache Storage 가 없다
 
@@ -1829,64 +1889,79 @@ const App = (() => {
     const map = libMap(), ids = Object.keys(map);
     if(!ids.length) return false;
     let n = 0;
+    const revs = libRevs(), had = JSON.stringify(revs);
     try{
       const c = await caches.open(LIB_CACHE);
       for(const id of ids){
         try{
           const res = await c.match(map[id]);
           if(!res) continue;
-          registerLanguagePack(await res.json());
+          const text = await res.text();
+          registerLanguagePack(JSON.parse(text));
           if(LANGUAGE_PACKS[id]) n++;
+          // rev 없이 받아 둔 것(v7.3 이전)은 본문 해시로 채운다 — catalog.py 와 같은 sha1 앞 12자리
+          if(!revs[id] && window.crypto && crypto.subtle) revs[id] = await sha12(text);
         }catch(e){ console.warn('[서재] 복원 실패:', id, e); }
       }
     }catch(e){ console.warn('[서재] 캐시 열기 실패', e); }
+    if(JSON.stringify(revs) !== had) localStorage.setItem(LIB_REV, JSON.stringify(revs));
     return n > 0;
   }
 
   // 서재 = 원서(library/) + 단어장(packs/). 둘 다 「언어팩 JSON 을 골라 받는」 같은 경로를 탄다.
   // 단어장 파일은 packs/ 에서 오므로 url 을 붙여 둔다(libUrl 이 그걸 쓴다).
-  const LIB_SHELVES = [{dir:'library/', kind:'book'}, {dir:'packs/', kind:'pack'}];
-  async function libLoad(){
-    const got = await Promise.all(LIB_SHELVES.map(async sh => {
-      try{
-        const res = await fetch(sh.dir + 'index.json', {cache:'no-cache'});
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        const j = await res.json();
-        return {docs: (j.docs||[]).map(d => ({...d, kind:sh.kind, url: d.url || (sh.dir + d.file)}))};
-      }catch(e){ return {docs:[], err:e.message}; }
-    }));
-    if(!libState) return;                         // 불러오는 사이 화면을 나갔다
-    libState.list = got.flatMap(g => g.docs);
-    libState.err = got.map(g => g.err).filter(Boolean)[0] || null;
-    render();
+  // 언어 본과정(languages/)도 같은 길을 탄다 — 서재 화면엔 안 보이고 언어 선택 화면이 쓴다
+  const LIB_SHELVES = [{dir:'library/', kind:'book'}, {dir:'packs/', kind:'pack'}, {dir:'languages/', kind:'course'}];
+  let libLoading = null;
+  function libLoad(){
+    return libLoading || (libLoading = (async () => {
+      let cached = []; try{ cached = JSON.parse(localStorage.getItem(CAT_KEY)||'[]'); }catch(e){}
+      const got = await Promise.all(LIB_SHELVES.map(async sh => {
+        try{
+          const res = await fetch(sh.dir + 'index.json', {cache:'no-cache'});
+          if(!res.ok) throw new Error('HTTP ' + res.status);
+          const j = await res.json();
+          return {docs: (j.docs||[]).map(d => ({...d, kind:sh.kind, url: d.url || (sh.dir + d.file)}))};
+        }catch(e){ return {docs: cached.filter(d => d.kind===sh.kind), err:e.message}; }   // 못 읽은 칸은 지난번 목록으로
+      }));
+      libState.list = got.flatMap(g => g.docs);
+      libState.err = got.map(g => g.err).filter(Boolean)[0] || null;
+      libState.stale = !!libState.err;
+      if(!libState.stale) try{ localStorage.setItem(CAT_KEY, JSON.stringify(libState.list)); }catch(e){}
+      libLoading = null;
+      render();
+    })());
   }
 
   function libraryView(){
-    if(!libState){ libState = {list:null, err:null, busy:null}; libLoad(); }
+    if(libState.list === null) libLoad();
     const map = libMap();
     const head = `<h1>📚 ${T('libTitle')}</h1>
       <p class="sub" style="margin-bottom:16px">${T('libHint')}</p>`;
     if(!libOK()) return head + `<div class="card"><div class="empty">${T('libNoCache')}</div></div>`;
     if(libState.list === null) return head + `<div class="card"><div class="empty">${T('libLoading')}</div></div>`;
-    if(libState.err && !libState.list.length)
+    const list = libState.list.filter(d => d.kind!=='course');
+    if(libState.err && !list.length)
       return head + `<div class="card"><div class="empty">${TF('libErr',{e:esc(libState.err)})}</div></div>`;
-    if(!libState.list.length) return head + `<div class="card"><div class="empty">${T('libNone')}</div></div>`;
+    if(!list.length) return head + `<div class="card"><div class="empty">${T('libNone')}</div></div>`;
 
     const card = (d,i)=>{
       const have = !!map[d.id], busy = libState.busy===d.id;
       const meta = [ d.lines? TF('libLines',{n:Number(d.lines).toLocaleString()}) : '',
                      d.words? TF('libWords',{n:Number(d.words).toLocaleString()}) : '', d.size||'' ]
         .filter(Boolean).join(' · ');
+      const stale = libStale(d);
       const btn = busy
         ? `<button class="btn" disabled>${T('libGetting')}</button>`
         : have
           ? `<button class="btn primary" onclick="App.libOpen('${jattr(d.id)}')">${T(d.kind==='pack'?'libOpenPack':'libRead')}</button>
+             ${stale? `<button class="btn good" onclick="App.libGet(${i})">${T('libUpdate')}</button>`:''}
              <button class="btn" onclick="App.libDel('${jattr(d.id)}')">${T('libDel')}</button>`
           : `<button class="btn primary" onclick="App.libGet(${i})">${T('libGet')}</button>`;
       return `<div class="card" style="margin-bottom:12px">
         <div class="read-head">
           <div>
-            <h3 class="read-title">${d.flag? esc(d.flag)+' ':''}${esc(loc(d.name)||d.id)} ${have? `<span class="pill">${T('libHave')}</span>`:''}</h3>
+            <h3 class="read-title">${d.flag? esc(d.flag)+' ':''}${esc(loc(d.name)||d.id)} ${have? `<span class="pill">${T('libHave')}</span>`:''}${stale? ` <span class="pill green">${T('libNew')}</span>`:''}</h3>
             ${meta? `<div class="read-src">${esc(meta)}</div>`:''}
           </div>
         </div>
@@ -1895,7 +1970,8 @@ const App = (() => {
       </div>`;
     };
     // 칸이 둘 다 있을 때만 칸 제목을 단다 (libGet 은 전체 목록의 순번을 받으므로 i 를 그대로 넘긴다)
-    const shelves = LIB_SHELVES.map(sh => libState.list.map((d,i)=>[d,i]).filter(([d])=>d.kind===sh.kind)).filter(x=>x.length);
+    const shelves = LIB_SHELVES.filter(sh => sh.kind!=='course')
+      .map(sh => libState.list.map((d,i)=>[d,i]).filter(([d])=>d.kind===sh.kind)).filter(x=>x.length);
     const rows = shelves.map(xs => (shelves.length > 1 ? `<h2 class="lib-shelf">${T(xs[0][0].kind==='pack'?'libPacks':'libBooks')}</h2>` : '')
       + xs.map(([d,i]) => card(d,i)).join('')).join('');
     const err = libState.err? `<div class="hint" style="margin-bottom:12px">${TF('libErr',{e:esc(libState.err)})}</div>`:'';
@@ -1903,7 +1979,7 @@ const App = (() => {
   }
 
   async function libGet(i){
-    const d = libState && libState.list && libState.list[i]; if(!d) return;
+    const d = libState.list && libState.list[i]; if(!d) return;
     libState.busy = d.id; libState.err = null; render();
     const url = libUrl(d);
     try{
@@ -1917,10 +1993,11 @@ const App = (() => {
       await (await caches.open(LIB_CACHE))
         .put(url, new Response(text, {headers:{'Content-Type':'application/json'}}));
       const map = libMap(); map[pk.id] = url; libSetMap(map);
-      if(libState) libState.busy = null;
+      libRevSet(pk.id, d.rev);
+      libState.busy = null;
       applyI18n(); renderContentsMenu(); render();
     }catch(e){
-      if(libState){ libState.busy = null; libState.err = e.message; }
+      libState.busy = null; libState.err = e.message;
       render();
     }
   }
@@ -1931,9 +2008,16 @@ const App = (() => {
     const nm = (LANGUAGE_PACKS[id]||{}).name || id;
     if(!confirm(TF('libDelAsk',{n:nm}))) return;
     try{ (await caches.open(LIB_CACHE)).delete(url); }catch(e){}
-    delete map[id]; libSetMap(map);
+    delete map[id]; libSetMap(map); libRevSet(id);
     dropPack(id);
     applyI18n(); renderContentsMenu(); render();
+  }
+  // 언어 카드의 [받기]·[업데이트]: 그 target 의 본과정 묶음 중 안 받았거나 새 판이 있는 것만 받는다
+  async function getCourse(t, open){
+    if(libState.list === null) await libLoad();
+    const todo = libState.list.map((d,i)=>[d,i]).filter(([d]) => d.kind==='course' && d.target===t && (!libMap()[d.id] || libStale(d)));
+    for(const [, i] of todo){ await libGet(i); if(libState.err) return; }
+    if(open){ const m = mainPackOf(t); if(m) switchLang(m.id); }
   }
 
   // 팩을 메모리에서 내린다. 지금 보던 팩이었으면 남은 팩으로 옮긴다 (서재 삭제·가져온 팩 삭제 공통)
@@ -1969,6 +2053,7 @@ const App = (() => {
     st.rows = {lib, imp}; render();
   }
   function downloadsView(){
+    if(libState.list === null) libLoad();         // [업데이트] 판단에 목록이 필요하다
     if(!dlState){ dlState = {rows:null, err:null}; dlScan(); }
     const head = `<h1>📥 ${T('dlTitle')}</h1><p class="sub" style="margin-bottom:16px">${T('dlHint')}</p>`;
     if(!dlState.rows) return head + `<div class="card"><div class="empty">${T('dlScan')}</div></div>`;
@@ -1978,19 +2063,21 @@ const App = (() => {
     const sum = `<div class="card dl-sum"><b>${TF('dlSum',{n:all.length, size:fmtSize(total)})}</b>
       <button class="btn bad" onclick="App.dlClearAll()" ${all.length? '':'disabled'}>${T('dlClear')}</button></div>`;
     if(!all.length) return head + err + sum + `<div class="card"><div class="empty">${T('dlNone')}</div></div>`;
-    const busy = libState && libState.busy;
+    const busy = libState.busy;
     const item = r => {
       const p = LANGUAGE_PACKS[r.id], missing = r.size === null;
-      const kind = T(r.kind==='json' ? 'dlKindJson' : r.kind==='pack' ? 'dlKindPack' : 'dlKindBook');
+      const kind = T(r.kind==='json' ? 'dlKindJson' : r.kind==='pack' ? 'dlKindPack' : r.kind==='course' ? 'dlKindCourse' : 'dlKindBook');
+      const doc = r.kind==='json' ? null : (libState.list||[]).find(d => d.id===r.id), stale = !missing && libStale(doc);
       const id = jattr(r.id);
       const btns = busy === r.id ? `<button class="btn" disabled>${T('libGetting')}</button>`
         : missing ? `<button class="btn primary" onclick="App.dlRefetch('${id}')">${T('dlRefetch')}</button>
                      <button class="btn" onclick="App.dlForget('${id}')">${T('dlForget')}</button>`
         : `${p? `<button class="btn primary" onclick="App.libOpen('${id}')">${T(r.kind==='book'?'libRead':'libOpenPack')}</button>`:''}
+           ${stale? `<button class="btn good" onclick="App.dlRefetch('${id}')">${T('libUpdate')}</button>`:''}
            <button class="btn" onclick="App.${r.kind==='json'?'dlDelImported':'libDel'}('${id}')">${T('libDel')}</button>`;
       return `<div class="card dl-item">
         <h3 class="read-title">${p && p.flag? esc(p.flag)+' ':''}${esc((p && p.name) || r.id)} <span class="pill gray">${esc(kind)}</span>
-          ${missing? `<span class="pill warn">${T('dlMissing')}</span>`:''}</h3>
+          ${missing? `<span class="pill warn">${T('dlMissing')}</span>`:''}${stale? `<span class="pill green">${T('libNew')}</span>`:''}</h3>
         ${missing? '' : `<div class="read-src">${fmtSize(r.size)}</div>`}
         <div class="flashbtns">${btns}</div>
       </div>`;
@@ -2000,15 +2087,14 @@ const App = (() => {
   }
   // 파일 없음 → 서재 목록에서 같은 id 를 찾아 libGet 경로로 다시 받는다
   async function dlRefetch(id){
-    if(!libState) libState = {list:null, err:null, busy:null};
     if(!libState.list) await libLoad();
-    const i = (libState && libState.list || []).findIndex(d => d.id === id);
+    const i = libState.list.findIndex(d => d.id === id);
     if(i < 0){ if(dlState) dlState.err = TF('dlNotFound',{n:id}); render(); return; }
     await libGet(i);
-    if(libState && libState.err && dlState) dlState.err = libState.err;
+    if(libState.err && dlState) dlState.err = libState.err;
     render();
   }
-  function dlForget(id){ const map = libMap(); delete map[id]; libSetMap(map); render(); }
+  function dlForget(id){ const map = libMap(); delete map[id]; libSetMap(map); libRevSet(id); render(); }
   function dlDelImported(id){
     const customs = customPacks(); if(!(id in customs)) return;
     if(!confirm(TF('dlDelAsk',{n:(LANGUAGE_PACKS[id]||{}).name || id}))) return;
@@ -2020,7 +2106,7 @@ const App = (() => {
     const map = libMap(), customs = customPacks(), ids = Object.keys(map).concat(Object.keys(customs));
     if(!ids.length || !confirm(TF('dlClearAsk',{n:ids.length}))) return;
     try{ if(libOK()) await caches.delete(LIB_CACHE); }catch(e){}   // 서재 캐시를 통째로 지우는 곳은 여기뿐
-    libSetMap({}); localStorage.removeItem(PACKS_KEY);
+    libSetMap({}); localStorage.removeItem(LIB_REV); localStorage.removeItem(PACKS_KEY);
     ids.forEach(dropPack); dlState = null;
     applyI18n(); renderContentsMenu(); render();
   }
@@ -2110,9 +2196,10 @@ const App = (() => {
       Object.values(customs).forEach(registerLanguagePack);
     }catch(e){}
     // 활성 팩·base 정합성 맞추기 (저장값이 옛 id면 첫 팩으로)
-    if(!S.base || !basesAvailable().includes(S.base)) S.base = basesAvailable()[0] || 'kr';
+    if(!BASE_LABEL[S.base]) S.base = 'kr';
     // 활성 팩을 정하는 순서 — 둘 때 쓴다(서재 복원 전/후)
     function settleActive(){
+      if(!Object.keys(LANGUAGE_PACKS).length) return;
       if(!S.activeLang || !LANGUAGE_PACKS[S.activeLang]){
         const t = targetsForBase(curBase())[0];
         S.activeLang = t ? mainPackOf(t).id : Object.keys(LANGUAGE_PACKS)[0];
@@ -2125,6 +2212,7 @@ const App = (() => {
     // 마지막으로 보던 게 서재에서 받은 원서라면 libRestore() 가 끝나야 등록된다.
     // 그 전에 폴백을 돌리면 id 를 뺏기고, 다음 save() 가 잘못된 id 를 굳혀 버린다.
     const pendingLib = !!(S.activeLang && !LANGUAGE_PACKS[S.activeLang] && (S.activeLang in libMap()));
+    const prevActive = S.activeLang;      // settleActive 가 바꾸기 전 값 — migrateBundled 가 쓴다
     addEventListener('scroll', rdTrackScroll, {passive:true});   // 읽던 위치 기억
     // 세로쓰기는 페이지가 아니라 본문이 넘어가므로, 그 스크롤도 같은 추적에 태운다
     addEventListener('scroll', rdTrackScroll, {passive:true, capture:true});
@@ -2133,7 +2221,27 @@ const App = (() => {
     libRestore().then(ok=>{
       if(pendingLib) settleActive();      // 복원이 실패했으면 여기서 폴백
       if(ok || pendingLib){ applyI18n(); renderContentsMenu(); render(); }
+      migrateBundled(prevActive);
     });
+  }
+  // v7.3 이전엔 언어 본과정이 앱에 들어 있었다. 그때 보던 언어가 있으면 그 언어 본과정만 한 번 받아 준다.
+  // 목록을 못 읽으면(오프라인) 표시를 남기지 않아 다음 실행 때 다시 해 본다.
+  const MIGRATE_KEY = '3ls.migrated73';
+  async function migrateBundled(prev){
+    if(localStorage.getItem(MIGRATE_KEY)) return;
+    if(!prev || LANGUAGE_PACKS[prev]){ localStorage.setItem(MIGRATE_KEY, '1'); return; }
+    await libLoad();
+    if(libState.stale) return;
+    const d = libState.list.find(d => d.id===prev && d.kind!=='book') || libState.list.find(d => d.target===prev && d.kind!=='book');
+    localStorage.setItem(MIGRATE_KEY, '1');
+    if(!d) return;
+    const t = d.target;
+    if(libState.list.some(x => x.kind==='course' && x.target===t)) await getCourse(t);
+    else await libGet(libState.list.indexOf(d));
+    if(!LANGUAGE_PACKS[S.activeLang] || S.activeLang===prev || LANGUAGE_PACKS[prev]){
+      S.activeLang = resolvePack(LANGUAGE_PACKS[prev] ? prev : (mainPackOf(t)||{}).id);
+      save(); applyI18n(); renderContentsMenu(); render();
+    }
   }
 
   return {init, go, tab, speak, switchLang, setBase, importPack,
@@ -2143,23 +2251,12 @@ const App = (() => {
     wbSetQuery, wbSetCat, wbSetMode, toggleWordbank, toggleCol, toggleColBar, moveCol, colDrag,
     toggleSearch, gsSetQuery, gsGoTo,
     toggleRead, rdDoc, rdZoom, rdJump, rdSearch, rdLookup, rdToSearch, rdTapLine, rdSave, rdToggleVert,
-    toggleLibrary, libGet, libDel, libOpen, dlRefetch, dlForget, dlDelImported, dlClearAll,
+    toggleLibrary, libGet, libDel, libOpen, getCourse, dlRefetch, dlForget, dlDelImported, dlClearAll,
     cycleTheme, toggleMenu, closeMenu, toggleContents, closeContents, togglePick};
 })();
 </script>
 
-<!-- ▼ 언어팩: 파일명은 target 기준. 단어 뜻은 m:{<base>:…}로 여러 base를 한 파일에 담는다. -->
-<script src="languages/fr.js"></script>
-<script src="languages/es.js"></script>
-<script src="languages/ja.js"></script>
-<script src="languages/kr.js"></script>
-<script src="languages/zh.js"></script>
-<script src="languages/hanja.js"></script>
-<script src="languages/hanja3.js"></script>
-<script src="languages/hanja2.js"></script>
-<script src="languages/hanja1.js"></script>
-<script src="languages/jlpt-n1-vocab.js"></script>
-<script src="languages/la.js"></script>
+<!-- 언어팩은 여기서 싣지 않는다 — 언어 선택 화면에서 고른 것만 languages/·packs/ 에서 받는다 -->
 
 <script>window.addEventListener('DOMContentLoaded', () => App.init());</script>
 
